@@ -13,12 +13,19 @@ body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;bac
 .wrap{max-width:480px;margin:0 auto;padding:16px}
 h2{font-size:16px;margin:24px 0 8px}
 .card{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:16px}
+label{display:block;font-size:13px;color:var(--mut);margin:14px 0 6px}
+input,select{width:100%;padding:12px;font-size:16px;border:1px solid var(--bd);border-radius:10px;background:var(--bg);color:var(--txt)}
+summary{cursor:pointer;color:var(--pri);margin-top:14px}
 .btn{width:100%;padding:16px;margin-top:12px;border:0;border-radius:12px;background:var(--pri);color:#fff;font-size:17px;font-weight:600}
 .btn.sec{background:none;border:1px solid var(--pri);color:var(--pri)}
 .btn:disabled{opacity:.6}
 .link{background:none;border:0;color:var(--mut);font-size:16px;padding:8px;text-decoration:none}
 .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
 .mut{color:var(--mut);font-size:13px}
+.item{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--bd)}
+.item small{color:var(--mut);display:block}
+.item .dir{display:flex;align-items:center;gap:4px;white-space:nowrap;font-weight:600}
+.item button{background:none;border:0;color:var(--mut);font-size:18px;padding:6px}
 #toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#111827;color:#fff;padding:10px 16px;border-radius:10px;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90%}
 #toast.show{opacity:1}
 #toast.erro{background:var(--err)}
@@ -30,6 +37,27 @@ h2{font-size:16px;margin:24px 0 8px}
     <a href="index.html" class="link">← Lançar</a>
     <strong>Ferramentas</strong>
     <span style="width:70px"></span>
+  </div>
+
+  <h2>Despesas fixas (todo mês)</h2>
+  <div class="card">
+    <div class="mut">Lançadas automaticamente no dia 1 de cada mês, às 00:05.</div>
+    <div id="listaFixos" style="margin-top:8px"></div>
+    <details>
+      <summary>Adicionar despesa fixa</summary>
+      <label for="fDesc">Descrição</label>
+      <input id="fDesc" placeholder="Ex.: Aluguel" autocomplete="off">
+      <label for="fValor">Valor (R$)</label>
+      <input id="fValor" inputmode="decimal" placeholder="0,00" autocomplete="off">
+      <label for="fCat">Categoria</label>
+      <select id="fCat"></select>
+      <label for="fMeio">Onde</label>
+      <select id="fMeio"></select>
+      <label for="fDia">Dia do mês</label>
+      <input id="fDia" type="number" min="1" max="31" value="1" inputmode="numeric">
+      <button id="btnAddFixo" class="btn">Adicionar</button>
+    </details>
+    <button id="btnLancar" class="btn sec">Lançar os fixos deste mês agora</button>
   </div>
 
   <h2>Backup e exportação</h2>
@@ -45,6 +73,7 @@ h2{font-size:16px;margin:24px 0 8px}
 <script>
 const SUPABASE_URL = 'https://rgxtcesazjjongzzundn.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_dcaO4K5PeljI7vogQHQaxg_3hH_pIGT';
+const CATEGORIAS = ['Mercado','Alimentação','Transporte','Moradia','Saúde','Lazer','Educação','Assinaturas','Compras','Outros'];
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const $ = id => document.getElementById(id);
 
@@ -52,14 +81,93 @@ function hoje(){
   const d = new Date();
   return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
 }
+const brl = v => Number(v).toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
+function num(s){
+  s = (s || '').trim();
+  s = s.includes(',') ? s.replace(/\./g,'').replace(',','.') : s;
+  const n = parseFloat(s);
+  return isNaN(n) ? 0 : n;
+}
 function toast(m, erro){
   const t = $('toast');
   t.textContent = m;
   t.className = erro ? 'show erro' : 'show';
   clearTimeout(toast.t);
-  toast.t = setTimeout(() => t.className = '', 3000);
+  toast.t = setTimeout(() => t.className = '', 3500);
 }
 
+/* ---------- Despesas fixas ---------- */
+async function carregarOpcoes(){
+  const c = $('fCat');
+  c.innerHTML = '';
+  CATEGORIAS.forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = n; c.appendChild(o); });
+  const m = await db.from('meios_pagamento').select('nome').order('nome');
+  const sel = $('fMeio');
+  sel.innerHTML = '';
+  if(!m.error) m.data.forEach(x => { const o = document.createElement('option'); o.value = x.nome; o.textContent = x.nome; sel.appendChild(o); });
+}
+
+async function carregarFixos(){
+  const r = await db.from('recorrentes').select('*').order('dia').order('descricao');
+  const el = $('listaFixos');
+  el.innerHTML = '';
+  if(r.error){ el.textContent = 'Erro: ' + r.error.message; return; }
+  if(!r.data.length){ el.textContent = 'Nenhuma despesa fixa cadastrada.'; return; }
+  r.data.forEach(x => {
+    const item = document.createElement('div');
+    item.className = 'item';
+    const esq = document.createElement('div');
+    const l1 = document.createElement('div');
+    l1.textContent = x.descricao;
+    const l2 = document.createElement('small');
+    l2.textContent = 'Dia ' + x.dia + ' · ' + x.categoria + ' · ' + x.meio_pagamento;
+    esq.appendChild(l1); esq.appendChild(l2);
+    const dir = document.createElement('div');
+    dir.className = 'dir';
+    const v = document.createElement('span');
+    v.textContent = brl(x.valor);
+    const b = document.createElement('button');
+    b.textContent = '🗑';
+    b.onclick = () => apagarFixo(x.id, x.descricao);
+    dir.appendChild(v); dir.appendChild(b);
+    item.appendChild(esq); item.appendChild(dir);
+    el.appendChild(item);
+  });
+}
+
+async function apagarFixo(id, nome){
+  if(!confirm('Remover "' + nome + '" das despesas fixas? Os lançamentos já feitos continuam.')) return;
+  const {error} = await db.from('recorrentes').delete().eq('id', id);
+  if(error) return toast('Erro: ' + error.message, true);
+  toast('Removida');
+  carregarFixos();
+}
+
+$('btnAddFixo').onclick = async () => {
+  const desc = $('fDesc').value.trim();
+  const v = num($('fValor').value);
+  const dia = parseInt($('fDia').value) || 1;
+  if(!desc) return toast('Informe a descrição', true);
+  if(v <= 0) return toast('Informe o valor', true);
+  if(dia < 1 || dia > 31) return toast('Dia entre 1 e 31', true);
+  const {error} = await db.from('recorrentes').insert({
+    descricao: desc, valor: v, categoria: $('fCat').value, meio_pagamento: $('fMeio').value, dia: dia
+  });
+  if(error) return toast('Erro: ' + error.message, true);
+  $('fDesc').value = ''; $('fValor').value = ''; $('fDia').value = 1;
+  toast('Adicionada ✓');
+  carregarFixos();
+};
+
+$('btnLancar').onclick = async () => {
+  $('btnLancar').disabled = true;
+  const {data, error} = await db.rpc('lancar_fixos');
+  $('btnLancar').disabled = false;
+  if(error) return toast('Erro: ' + error.message, true);
+  toast(data > 0 ? data + ' lançamento(s) criado(s)' : 'Nada novo: os fixos deste mês já foram lançados');
+};
+
+/* ---------- Backup ---------- */
 async function todos(tabela, ordens){
   let tudo = [], de = 0;
   while(true){
@@ -105,8 +213,9 @@ $('btnJson').onclick = async () => {
   try {
     const gastos = await todos('gastos', ['data', 'id']);
     const meios = await todos('meios_pagamento', ['nome']);
+    const fixos = await todos('recorrentes', ['descricao']);
     const o = await db.from('orcamento').select('*');
-    const pacote = {exportado_em: new Date().toISOString(), meios_pagamento: meios, orcamento: o.data || [], gastos: gastos};
+    const pacote = {exportado_em: new Date().toISOString(), meios_pagamento: meios, orcamento: o.data || [], recorrentes: fixos, gastos: gastos};
     const ok = await entregar('backup-gastos-' + hoje() + '.json', 'application/json', JSON.stringify(pacote, null, 1));
     if(ok){ marcar(); toast('Backup pronto: ' + gastos.length + ' lançamentos'); }
   } catch(e){ toast('Erro: ' + (e.message || e), true); }
@@ -135,6 +244,8 @@ $('btnCsv').onclick = async () => {
   const {data} = await db.auth.getSession();
   if(!data.session){ location.href = 'index.html'; return; }
   mostrarUltimo();
+  await carregarOpcoes();
+  carregarFixos();
 })();
 </script>
 </body>
