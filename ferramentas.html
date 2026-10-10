@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f766e">
+<title>Ferramentas</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--txt:#111827;--mut:#6b7280;--pri:#0f766e;--bd:#e5e7eb;--err:#b91c1c}
+@media(prefers-color-scheme:dark){:root{--bg:#0b0f14;--card:#151b23;--txt:#e5e7eb;--mut:#9ca3af;--bd:#263040;--pri:#14b8a6;--err:#f87171}}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--txt);padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+.wrap{max-width:480px;margin:0 auto;padding:16px}
+h2{font-size:16px;margin:24px 0 8px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:16px}
+.btn{width:100%;padding:16px;margin-top:12px;border:0;border-radius:12px;background:var(--pri);color:#fff;font-size:17px;font-weight:600}
+.btn.sec{background:none;border:1px solid var(--pri);color:var(--pri)}
+.btn:disabled{opacity:.6}
+.link{background:none;border:0;color:var(--mut);font-size:16px;padding:8px;text-decoration:none}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.mut{color:var(--mut);font-size:13px}
+#toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#111827;color:#fff;padding:10px 16px;border-radius:10px;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90%}
+#toast.show{opacity:1}
+#toast.erro{background:var(--err)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <a href="index.html" class="link">← Lançar</a>
+    <strong>Ferramentas</strong>
+    <span style="width:70px"></span>
+  </div>
+
+  <h2>Backup e exportação</h2>
+  <div class="card">
+    <div class="mut" id="ultimo">Nenhum backup feito neste aparelho.</div>
+    <button id="btnJson" class="btn">Backup completo (JSON)</button>
+    <button id="btnCsv" class="btn sec">Planilha (CSV)</button>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.1/dist/umd/supabase.js"></script>
+<script>
+const SUPABASE_URL = 'https://rgxtcesazjjongzzundn.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_dcaO4K5PeljI7vogQHQaxg_3hH_pIGT';
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const $ = id => document.getElementById(id);
+
+function hoje(){
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+function toast(m, erro){
+  const t = $('toast');
+  t.textContent = m;
+  t.className = erro ? 'show erro' : 'show';
+  clearTimeout(toast.t);
+  toast.t = setTimeout(() => t.className = '', 3000);
+}
+
+async function todos(tabela, ordens){
+  let tudo = [], de = 0;
+  while(true){
+    let q = db.from(tabela).select('*');
+    ordens.forEach(o => { q = q.order(o); });
+    const {data, error} = await q.range(de, de + 999);
+    if(error) throw error;
+    tudo = tudo.concat(data);
+    if(data.length < 1000) break;
+    de += 1000;
+  }
+  return tudo;
+}
+
+async function entregar(nome, mime, conteudo){
+  const blob = new Blob([conteudo], {type: mime});
+  const file = new File([blob], nome, {type: mime});
+  if(navigator.canShare && navigator.canShare({files: [file]})){
+    try { await navigator.share({files: [file], title: nome}); return true; }
+    catch(e){ if(e.name === 'AbortError') return false; }
+  }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = nome;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+  return true;
+}
+
+function marcar(){
+  localStorage.setItem('ultimoBackup', new Date().toISOString());
+  mostrarUltimo();
+}
+function mostrarUltimo(){
+  const s = localStorage.getItem('ultimoBackup');
+  if(s) $('ultimo').textContent = 'Último backup neste aparelho: ' + new Date(s).toLocaleString('pt-BR');
+}
+
+$('btnJson').onclick = async () => {
+  $('btnJson').disabled = true;
+  try {
+    const gastos = await todos('gastos', ['data', 'id']);
+    const meios = await todos('meios_pagamento', ['nome']);
+    const o = await db.from('orcamento').select('*');
+    const pacote = {exportado_em: new Date().toISOString(), meios_pagamento: meios, orcamento: o.data || [], gastos: gastos};
+    const ok = await entregar('backup-gastos-' + hoje() + '.json', 'application/json', JSON.stringify(pacote, null, 1));
+    if(ok){ marcar(); toast('Backup pronto: ' + gastos.length + ' lançamentos'); }
+  } catch(e){ toast('Erro: ' + (e.message || e), true); }
+  $('btnJson').disabled = false;
+};
+
+$('btnCsv').onclick = async () => {
+  $('btnCsv').disabled = true;
+  try {
+    const gastos = await todos('gastos', ['data', 'id']);
+    const cols = ['data','valor','categoria','tipo','descricao','meio_pagamento','parcelas','parcela_numero','recompensa','origem'];
+    const cel = (c, v) => {
+      if(v === null || v === undefined) return '';
+      if(c === 'valor' || c === 'recompensa') return String(v).replace('.', ',');
+      return '"' + String(v).replace(/"/g, '""') + '"';
+    };
+    const linhas = [cols.join(';')];
+    gastos.forEach(g => linhas.push(cols.map(c => cel(c, g[c])).join(';')));
+    const ok = await entregar('gastos-' + hoje() + '.csv', 'text/csv', '\ufeff' + linhas.join('\r\n'));
+    if(ok) toast('Planilha pronta: ' + gastos.length + ' lançamentos');
+  } catch(e){ toast('Erro: ' + (e.message || e), true); }
+  $('btnCsv').disabled = false;
+};
+
+(async () => {
+  const {data} = await db.auth.getSession();
+  if(!data.session){ location.href = 'index.html'; return; }
+  mostrarUltimo();
+})();
+</script>
+</body>
+</html>
