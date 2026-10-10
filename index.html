@@ -5,13 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0f766e">
 <title>Gastos</title>
-  <link rel="manifest" href="manifest.json">
+<link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Gastos">
 <script>if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js')</script>
-
 <style>
 :root{--bg:#f6f7f9;--card:#fff;--txt:#111827;--mut:#6b7280;--pri:#0f766e;--bd:#e5e7eb;--err:#b91c1c}
 @media(prefers-color-scheme:dark){:root{--bg:#0b0f14;--card:#151b23;--txt:#e5e7eb;--mut:#9ca3af;--bd:#263040;--pri:#14b8a6;--err:#f87171}}
@@ -64,8 +63,6 @@ summary{cursor:pointer;color:var(--pri);margin-top:14px}
 <section id="app" hidden>
   <div class="top">
     <div><div class="mut" id="mesLabel"></div><div class="total" id="total">R$ 0,00</div></div>
-    <a href="resumo.html" class="link" style="text-decoration:none">Resumo</a>
-
     <button id="btnSair" class="link">Sair</button>
   </div>
   <div class="card">
@@ -90,6 +87,8 @@ summary{cursor:pointer;color:var(--pri);margin-top:14px}
     </details>
     <button id="btnSalvar" class="btn">Salvar gasto</button>
   </div>
+  <a href="resumo.html" class="link" style="display:block;text-align:center;padding:16px;text-decoration:none">Ver resumo do mês →</a>
+  <a href="ferramentas.html" class="link" style="display:block;text-align:center;padding:8px;text-decoration:none">Ferramentas e backup</a>
   <h2>Últimos lançamentos</h2>
   <div id="lista"></div>
 </section>
