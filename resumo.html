@@ -9,6 +9,7 @@
 :root{--bg:#f6f7f9;--card:#fff;--txt:#111827;--mut:#6b7280;--pri:#0f766e;--bd:#e5e7eb;--err:#b91c1c}
 @media(prefers-color-scheme:dark){:root{--bg:#0b0f14;--card:#151b23;--txt:#e5e7eb;--mut:#9ca3af;--bd:#263040;--pri:#14b8a6;--err:#f87171}}
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--txt);padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
 .wrap{max-width:480px;margin:0 auto;padding:16px}
 h2{font-size:16px;margin:24px 0 8px}
@@ -20,14 +21,20 @@ select{width:100%;padding:12px;font-size:16px;border:1px solid var(--bd);border-
 .nav button{font-size:26px;padding:4px 16px}
 #mesLabel{font-size:17px;font-weight:600;text-transform:capitalize}
 .filtros{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.tag{padding:8px 14px;border-radius:999px;background:var(--pri);color:#fff;border:0;font-size:14px;margin-bottom:12px}
 .total{font-size:32px;font-weight:700}
 .mut{color:var(--mut);font-size:13px}
 .barra{height:10px;background:var(--bd);border-radius:999px;overflow:hidden;margin:10px 0 6px}
 .barra i{display:block;height:100%;width:0;background:#16a34a}
 .barra.warn i{background:#d97706}
 .barra.over i{background:#dc2626}
+.abas{display:flex;gap:8px;margin-bottom:8px}
+.aba{flex:1;padding:10px;border-radius:999px;border:1px solid var(--bd);background:var(--card);color:var(--txt);font-size:15px}
+.aba.on{background:var(--pri);border-color:var(--pri);color:#fff}
 .row{margin:12px 0}
+.row.clk{cursor:pointer}
 .row .l{display:flex;justify-content:space-between;font-size:14px;gap:8px}
+.row.sel .l{font-weight:700;color:var(--pri)}
 .row .b{height:8px;background:var(--bd);border-radius:999px;margin-top:4px;overflow:hidden}
 .row .b i{display:block;height:100%;background:var(--pri)}
 .item{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--bd)}
@@ -56,6 +63,7 @@ select{width:100%;padding:12px;font-size:16px;border:1px solid var(--bd);border-
     <select id="fCat"></select>
     <select id="fMeio"></select>
   </div>
+  <div id="diaTag" hidden><button id="btnLimparDia" class="tag"></button></div>
 
   <div class="card">
     <div class="mut" id="totLabel">Total do mês</div>
@@ -73,11 +81,15 @@ select{width:100%;padding:12px;font-size:16px;border:1px solid var(--bd);border-
     <div id="orcRest" class="mut"></div>
   </div>
 
-  <h2>Por categoria</h2>
-  <div id="porCat" class="card"></div>
-
-  <h2>Por onde</h2>
-  <div id="porMeio" class="card"></div>
+  <h2>Análise</h2>
+  <div class="card">
+    <div class="abas">
+      <button class="aba on" data-aba="cat">Categorias</button>
+      <button class="aba" data-aba="meio">Onde</button>
+      <button class="aba" data-aba="dia">Dias</button>
+    </div>
+    <div id="grafico"></div>
+  </div>
 
   <h2>Lançamentos</h2>
   <div id="lista"></div>
@@ -117,11 +129,20 @@ function toast(m, erro){
   clearTimeout(toast.t);
   toast.t = setTimeout(() => t.className = '', 2500);
 }
+function fmtDia(s){ const [y, m, d] = s.split('-'); return d + '/' + m; }
+function rotuloDia(s){
+  const [y, m, d] = s.split('-').map(Number);
+  const sem = new Date(y, m - 1, d).toLocaleDateString('pt-BR', {weekday:'short'}).replace('.', '');
+  return String(d).padStart(2, '0') + '/' + String(m).padStart(2, '0') + ' · ' + sem;
+}
 
 let mes = hoje().slice(0,8) + '01';
 let dados = [];
 let limite = 0;
 let meiosBase = [];
+let uid = null;
+let aba = 'cat';
+let diaSel = '';
 
 function opcoes(sel, base, extras, rotulo){
   const atual = sel.value;
@@ -146,17 +167,26 @@ function agrupar(a, campo){
   return Object.entries(m).sort((p, q) => q[1] - p[1]);
 }
 
-function barras(el, pares, total){
+function filtrar(comDia){
+  const fc = $('fCat').value, fm = $('fMeio').value;
+  return dados.filter(x =>
+    (!fc || x.categoria === fc) &&
+    (!fm || x.meio_pagamento === fm) &&
+    (!comDia || !diaSel || x.data === diaSel));
+}
+
+function barras(el, pares, total, opt){
   el.innerHTML = '';
   if(!pares.length){ el.textContent = 'Sem gastos.'; return; }
-  pares.forEach(([nome, v]) => {
+  pares.forEach(([chave, v]) => {
     const pct = total ? v / total * 100 : 0;
     const row = document.createElement('div');
-    row.className = 'row';
+    row.className = 'row' + (opt && opt.onClick ? ' clk' : '') + (opt && opt.sel === chave ? ' sel' : '');
+    if(opt && opt.onClick) row.onclick = () => opt.onClick(chave);
     const l = document.createElement('div');
     l.className = 'l';
     const a = document.createElement('span');
-    a.textContent = nome;
+    a.textContent = opt && opt.rotulo ? opt.rotulo(chave) : chave;
     const b = document.createElement('span');
     b.textContent = brl(v) + ' · ' + Math.round(pct) + '%';
     l.appendChild(a); l.appendChild(b);
@@ -171,14 +201,17 @@ function barras(el, pares, total){
 }
 
 function render(){
-  const fc = $('fCat').value, fm = $('fMeio').value;
-  const f = dados.filter(x => (!fc || x.categoria === fc) && (!fm || x.meio_pagamento === fm));
+  const f = filtrar(true);
   const tot = soma(f), totMes = soma(dados);
+  const filtrado = $('fCat').value || $('fMeio').value || diaSel;
 
-  $('totLabel').textContent = (fc || fm) ? 'Total (filtrado)' : 'Total do mês';
+  $('totLabel').textContent = filtrado ? 'Total (filtrado)' : 'Total do mês';
   $('total').textContent = brl(tot);
   const rec = f.reduce((s, x) => s + Number(x.recompensa || 0), 0);
   $('rec').textContent = rec > 0 ? 'Recompensas: ' + brl(rec) : '';
+
+  $('diaTag').hidden = !diaSel;
+  if(diaSel) $('btnLimparDia').textContent = 'Dia ' + fmtDia(diaSel) + ' ✕';
 
   const barra = $('orcBarra');
   const i = barra.querySelector('i');
@@ -195,8 +228,19 @@ function render(){
     $('orcRest').textContent = '';
   }
 
-  barras($('porCat'), agrupar(f, 'categoria'), tot);
-  barras($('porMeio'), agrupar(f, 'meio_pagamento'), tot);
+  document.querySelectorAll('.aba').forEach(b => b.classList.toggle('on', b.dataset.aba === aba));
+  const gr = $('grafico');
+  if(aba === 'cat') barras(gr, agrupar(f, 'categoria'), tot);
+  else if(aba === 'meio') barras(gr, agrupar(f, 'meio_pagamento'), tot);
+  else {
+    const base = filtrar(false);
+    const pares = agrupar(base, 'data').sort((p, q) => q[0].localeCompare(p[0]));
+    barras(gr, pares, soma(base), {
+      rotulo: rotuloDia,
+      sel: diaSel,
+      onClick: k => { diaSel = (diaSel === k ? '' : k); render(); }
+    });
+  }
 
   const lista = $('lista');
   lista.innerHTML = '';
@@ -240,22 +284,25 @@ async function carregar(){
 async function init(){
   const {data} = await db.auth.getSession();
   if(!data.session){ location.href = 'index.html'; return; }
-  const o = await db.from('orcamento').select('limite_mensal').eq('id', 1).maybeSingle();
+  uid = data.session.user.id;
+  const o = await db.from('orcamento').select('limite_mensal').eq('user_id', uid).maybeSingle();
   if(!o.error && o.data) limite = Number(o.data.limite_mensal);
   const m = await db.from('meios_pagamento').select('nome').order('nome');
   if(!m.error) meiosBase = m.data.map(x => x.nome);
   carregar();
 }
 
-$('ant').onclick = () => { mes = addMeses(mes, -1); carregar(); };
-$('prox').onclick = () => { mes = addMeses(mes, 1); carregar(); };
+$('ant').onclick = () => { mes = addMeses(mes, -1); diaSel = ''; carregar(); };
+$('prox').onclick = () => { mes = addMeses(mes, 1); diaSel = ''; carregar(); };
 $('fCat').onchange = render;
 $('fMeio').onchange = render;
+$('btnLimparDia').onclick = () => { diaSel = ''; render(); };
+document.querySelectorAll('.aba').forEach(b => { b.onclick = () => { aba = b.dataset.aba; render(); }; });
 $('btnLimite').onclick = async () => {
   const s = prompt('Limite mensal (R$)', limite || '');
   if(s === null) return;
   const v = num(s);
-  const {error} = await db.from('orcamento').upsert({id: 1, limite_mensal: v});
+  const {error} = await db.from('orcamento').upsert({user_id: uid, limite_mensal: v});
   if(error) return toast('Erro: ' + error.message, true);
   limite = v;
   render();
