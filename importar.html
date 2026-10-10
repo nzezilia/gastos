@@ -9,18 +9,31 @@
 :root{--bg:#f6f7f9;--card:#fff;--txt:#111827;--mut:#6b7280;--pri:#0f766e;--bd:#e5e7eb;--err:#b91c1c}
 @media(prefers-color-scheme:dark){:root{--bg:#0b0f14;--card:#151b23;--txt:#e5e7eb;--mut:#9ca3af;--bd:#263040;--pri:#14b8a6;--err:#f87171}}
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--txt);padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
 .wrap{max-width:480px;margin:0 auto;padding:16px}
 h2{font-size:16px;margin:24px 0 8px}
 .card{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:16px}
 label{display:block;font-size:13px;color:var(--mut);margin:14px 0 6px}
+label:first-child{margin-top:0}
 input[type=file]{width:100%;font-size:15px}
+select{padding:12px;font-size:16px;border:1px solid var(--bd);border-radius:10px;background:var(--bg);color:var(--txt)}
 textarea{width:100%;padding:12px;font-size:13px;font-family:ui-monospace,Menlo,Consolas,monospace;border:1px solid var(--bd);border-radius:10px;background:var(--bg);color:var(--txt)}
+summary{cursor:pointer;color:var(--pri);margin-top:14px}
 .btn{width:100%;padding:16px;margin-top:12px;border:0;border-radius:12px;background:var(--pri);color:#fff;font-size:17px;font-weight:600}
+.btn.sec{background:none;border:1px solid var(--pri);color:var(--pri)}
+.btn:disabled{opacity:.6}
 .link{background:none;border:0;color:var(--mut);font-size:16px;padding:8px;text-decoration:none}
 .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
 .mut{color:var(--mut);font-size:13px}
-.chk{display:flex;align-items:center;gap:8px;color:var(--txt);font-size:14px}
+.lin{padding:10px 0;border-bottom:1px solid var(--bd)}
+.lin.dup{opacity:.55}
+.lin .t{display:flex;align-items:center;gap:10px;font-size:15px;margin:0;color:var(--txt)}
+.lin .t input{width:20px;height:20px;flex:none}
+.lin .n{flex:1;min-width:0;overflow-wrap:anywhere}
+.lin .v{font-weight:600;white-space:nowrap}
+.lin .s{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:6px 0 0 30px;font-size:12px;color:var(--mut)}
+.lin .s select{padding:6px 8px;font-size:14px}
 #toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#111827;color:#fff;padding:10px 16px;border-radius:10px;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90%}
 #toast.show{opacity:1}
 #toast.erro{background:var(--err)}
@@ -35,50 +48,90 @@ textarea{width:100%;padding:12px;font-size:13px;font-family:ui-monospace,Menlo,C
   </div>
 
   <div class="card">
-    <div class="mut">Etapa de teste: o app lê o PDF aqui no celular (nada é enviado para a internet) e mostra o texto encontrado.</div>
     <label for="arq">Arquivo PDF da fatura</label>
     <input id="arq" type="file" accept="application/pdf">
-    <label class="chk"><input type="checkbox" id="soValores" checked> Mostrar só linhas com valor (R$)</label>
-    <div id="status" class="mut" style="margin-top:8px"></div>
+    <div id="status" class="mut" style="margin-top:8px">O PDF é lido aqui no celular. Nada é enviado para a internet.</div>
+    <details>
+      <summary>Ou cole o texto da fatura</summary>
+      <textarea id="txt" rows="8" placeholder="Cole aqui as linhas da fatura"></textarea>
+      <button id="btnLer" class="btn sec">Interpretar texto</button>
+    </details>
   </div>
 
-  <h2>Texto encontrado</h2>
-  <div class="card">
-    <textarea id="saida" readonly rows="14" placeholder="O texto da fatura vai aparecer aqui."></textarea>
-    <button id="btnCopiar" class="btn">Copiar texto</button>
+  <div id="prev" hidden>
+    <h2>Conferência</h2>
+    <div class="card">
+      <label for="meio">Cartão desta fatura</label>
+      <select id="meio" style="width:100%"></select>
+      <div id="resumoImp" style="margin-top:12px;font-weight:600"></div>
+      <div id="totFat" class="mut" style="margin-top:4px"></div>
+    </div>
+    <div class="card" style="margin-top:12px"><div id="linhas"></div></div>
+    <details id="ign">
+      <summary id="ignTit"></summary>
+      <div id="ignLista" class="mut"></div>
+    </details>
+    <button id="btnImportar" class="btn">Importar selecionados</button>
   </div>
 </div>
 <div id="toast"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.1/dist/umd/supabase.js"></script>
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+const SUPABASE_URL = 'https://rgxtcesazjjongzzundn.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_dcaO4K5PeljI7vogQHQaxg_3hH_pIGT';
+const CATEGORIAS = ['Mercado','Alimentação','Transporte','Moradia','Saúde','Lazer','Educação','Assinaturas','Compras','Outros'];
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const $ = id => document.getElementById(id);
-let paginas = [];
 
+const MESES = {jan:1,fev:2,mar:3,abr:4,mai:5,jun:6,jul:7,ago:8,set:9,out:10,nov:11,dez:12};
+const reLinha = /^(\d{1,2}) de ([a-zç]{3,9})\.? (\d{4}) (.+?)\s+-\s+R\$\s*(-?)\s*([\d.]+,\d{2})\s*$/i;
+const reCab = /^\d{4}[*•x]{2,}\d{4}\s+(\d{2})\/(\d{2})\/(\d{4})\s+R\$\s*([\d.]+,\d{2})\s*$/i;
+const reParc = /\(Parcela\s+(\d+)\s+de\s+(\d+)\)/i;
+
+/* Palavras-chave para sugerir categoria (a ordem importa) */
+const REGRAS = [
+  ['Assinaturas', ['NETFLIX','SPOTIFY','AMAZON PRIME','APPLE.COM','GOOGLE *','DISNEY','YOUTUBE','OPENAI','CHATGPT','ANTHROPIC','CLAUDE']],
+  ['Compras', ['VIA VENETO','AMAZON','MERCADOLIVRE','MERCADO LIVRE','SHOPEE','ZARA','RENNER','C&A','APP*','MAGALU','SHEIN']],
+  ['Alimentação', ['99FOOD','IFD*','IFOOD','UBER EATS','UBEREATS','RAPPI','SALGAT','CAFE','PADARIA','LANCH','RESTAUR','PIZZ','BURGER','MCDONALD','STARBUCKS','SORVET','ALIME','ACAI','CONFEIT']],
+  ['Transporte', ['UBER','99POP','99 TAXI','BILHUNICO','SPTRANS','POSTO','SHELL','IPIRANGA','ESTAPAR','ESTACIONAM','SEMPARAR','SEM PARAR','CONECTCAR']],
+  ['Mercado', ['MAMBO','DIA BRASIL','CARREFOUR','PAO DE ACUCAR','ASSAI','SUPERMERC','MERCADO','HORTI','PRC ALI','OXXO','SONDA','ATACAD']],
+  ['Saúde', ['FARMAC','DROGA','RAIA','PACHECO','LABORAT','HOSPITAL','CLINICA','TOTALP','SMARTFIT','DENTAL']],
+  ['Lazer', ['LATAM','GOL ','AZUL','CINEMA','INGRESSO','HOTEL','BOOKING','AIRBNB','CVC']]
+];
+
+let linhas = [], ignoradas = [], totalFatura = null, venc = '', meiosOk = false;
+
+const brl = v => Number(v).toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
+const sem = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+const pn = s => parseFloat(s.replace(/\./g, '').replace(',', '.'));
 function toast(m, erro){
   const t = $('toast');
   t.textContent = m;
   t.className = erro ? 'show erro' : 'show';
   clearTimeout(toast.t);
-  toast.t = setTimeout(() => t.className = '', 2500);
+  toast.t = setTimeout(() => t.className = '', 3000);
+}
+function addMeses(s, n){
+  const [y, m, d] = s.split('-').map(Number);
+  const t = new Date(y, m - 1 + n, 1);
+  const ult = new Date(t.getFullYear(), t.getMonth() + 1, 0).getDate();
+  return t.getFullYear() + '-' + String(t.getMonth()+1).padStart(2,'0') + '-' + String(Math.min(d, ult)).padStart(2,'0');
+}
+function fmtData(s){ const [y, m, d] = s.split('-'); return d + '/' + m + '/' + y; }
+function sugerir(desc){
+  const d = ' ' + sem(desc).toUpperCase() + ' ';
+  for(const [cat, palavras] of REGRAS){
+    if(palavras.some(p => d.includes(p))) return cat;
+  }
+  return 'Outros';
 }
 
-function mostrar(){
-  const re = /\d{1,3}(?:\.\d{3})*,\d{2}/;
-  const filtro = $('soValores').checked;
-  const partes = [];
-  paginas.forEach((ls, i) => {
-    partes.push('--- página ' + (i + 1) + ' ---');
-    (filtro ? ls.filter(l => re.test(l)) : ls).forEach(l => partes.push(l));
-  });
-  $('saida').value = partes.join('\n');
-}
-
+/* ---------- Leitura do PDF ---------- */
 async function lerPdf(file){
-  $('status').textContent = 'Lendo...';
-  $('saida').value = '';
-  paginas = [];
+  $('status').textContent = 'Lendo o PDF...';
   try {
     const buf = await file.arrayBuffer();
     const task = pdfjsLib.getDocument({data: buf});
@@ -88,43 +141,184 @@ async function lerPdf(file){
       atualizar(s);
     };
     const pdf = await task.promise;
-    let total = 0;
+    const todas = [];
     for(let p = 1; p <= pdf.numPages; p++){
       const page = await pdf.getPage(p);
       const tc = await page.getTextContent();
-      const its = tc.items
-        .filter(i => i.str.trim())
-        .map(i => ({x: i.transform[4], y: i.transform[5], t: i.str.trim()}));
+      const its = tc.items.filter(i => i.str.trim()).map(i => ({x: i.transform[4], y: i.transform[5], t: i.str.trim()}));
       its.sort((a, b) => b.y - a.y || a.x - b.x);
-      const linhas = [];
+      const grupos = [];
       let atual = null;
       its.forEach(i => {
-        if(!atual || Math.abs(atual.y - i.y) > 3){ atual = {y: i.y, itens: []}; linhas.push(atual); }
+        if(!atual || Math.abs(atual.y - i.y) > 3){ atual = {y: i.y, itens: []}; grupos.push(atual); }
         atual.itens.push(i);
       });
-      const textoLinhas = linhas.map(l => l.itens.sort((a, b) => a.x - b.x).map(i => i.t).join(' ').replace(/\s+/g, ' '));
-      total += textoLinhas.length;
-      paginas.push(textoLinhas);
+      grupos.forEach(g => todas.push(g.itens.sort((a, b) => a.x - b.x).map(i => i.t).join(' ').replace(/\s+/g, ' ')));
     }
-    if(total === 0){
-      $('status').textContent = 'Nenhum texto encontrado. O PDF pode ser uma imagem.';
-      return;
-    }
+    if(!todas.length){ $('status').textContent = 'Nenhum texto encontrado. O PDF pode ser uma imagem.'; return; }
+    $('txt').value = todas.join('\n');
     $('status').textContent = pdf.numPages + ' página(s) lida(s).';
-    mostrar();
+    interpretar();
   } catch(e){
     $('status').textContent = 'Não consegui ler o PDF: ' + (e.message || e);
   }
 }
 
+/* ---------- Interpretação das linhas ---------- */
+function interpretar(){
+  const brutas = $('txt').value.split('\n').map(s => s.replace(/\s+/g, ' ').trim()).filter(Boolean);
+  linhas = []; ignoradas = []; totalFatura = null; venc = '';
+  brutas.forEach(l => {
+    if(/^---/.test(l)) return;
+    let m = l.match(reCab);
+    if(m){
+      if(totalFatura === null){ totalFatura = pn(m[4]); venc = m[1] + '/' + m[2] + '/' + m[3]; }
+      return;
+    }
+    m = l.match(reLinha);
+    if(m){
+      const mes = MESES[sem(m[2]).toLowerCase().slice(0, 3)];
+      if(!mes){ ignoradas.push(l); return; }
+      let desc = m[4].trim(), parc = 1, tot = 1;
+      const p = desc.match(reParc);
+      if(p){ parc = +p[1]; tot = +p[2]; desc = desc.replace(reParc, '').replace(/\s+/g, ' ').trim(); }
+      const v = pn(m[6]);
+      const credito = m[5] === '-' || /PAGAMENTO|ESTORNO|CREDITO/.test(sem(desc).toUpperCase());
+      if(credito || !(v > 0) || parc < 1 || parc > tot){ ignoradas.push(l); return; }
+      const d0 = m[3] + '-' + String(mes).padStart(2, '0') + '-' + String(m[1]).padStart(2, '0');
+      linhas.push({data: addMeses(d0, parc - 1), valor: v, desc: desc, cat: sugerir(desc), parcela: parc, parcelas: tot, marcar: true, dup: false});
+      return;
+    }
+    if(/R\$/.test(l)) ignoradas.push(l);
+  });
+  if(!linhas.length){
+    $('prev').hidden = true;
+    $('status').textContent = 'Não reconheci nenhuma compra neste texto. Me mande algumas linhas para eu ajustar.';
+    return;
+  }
+  $('prev').hidden = false;
+  carregarMeios().then(async () => {
+    await marcarDuplicados($('meio').value);
+    render();
+  });
+}
+
+async function carregarMeios(){
+  if(meiosOk) return;
+  const r = await db.from('meios_pagamento').select('nome').order('nome');
+  const sel = $('meio');
+  sel.innerHTML = '';
+  const o0 = document.createElement('option');
+  o0.value = ''; o0.textContent = 'Escolha o cartão...';
+  sel.appendChild(o0);
+  if(!r.error) r.data.forEach(x => { const o = document.createElement('option'); o.value = x.nome; o.textContent = x.nome; sel.appendChild(o); });
+  meiosOk = true;
+}
+
+async function marcarDuplicados(meio){
+  linhas.forEach(l => { l.dup = false; l.marcar = true; });
+  if(!meio || !linhas.length) return;
+  const datas = linhas.map(l => l.data).sort();
+  const r = await db.from('gastos').select('data,valor')
+    .eq('meio_pagamento', meio).gte('data', datas[0]).lte('data', datas[datas.length - 1]);
+  if(r.error){ toast('Erro ao checar duplicados: ' + r.error.message, true); return; }
+  const cont = {};
+  r.data.forEach(x => { const k = x.data + '|' + Number(x.valor).toFixed(2); cont[k] = (cont[k] || 0) + 1; });
+  linhas.forEach(l => {
+    const k = l.data + '|' + l.valor.toFixed(2);
+    if(cont[k] > 0){ cont[k]--; l.dup = true; l.marcar = false; }
+  });
+}
+
+/* ---------- Tela de conferência ---------- */
+function resumo(){
+  const sel = linhas.filter(l => l.marcar);
+  const tSel = sel.reduce((a, l) => a + l.valor, 0);
+  $('resumoImp').textContent = sel.length + ' de ' + linhas.length + ' compras selecionadas · ' + brl(tSel);
+  const tTodas = linhas.reduce((a, l) => a + l.valor, 0);
+  const nDup = linhas.filter(l => l.dup).length;
+  let t = '';
+  if(totalFatura !== null){
+    const dif = totalFatura - tTodas;
+    t = 'Total da fatura no PDF: ' + brl(totalFatura) + ' (venc. ' + venc + '). Soma das compras lidas: ' + brl(tTodas) + '. ';
+    t += Math.abs(dif) < 0.01 ? '✓ Confere.' : 'Diferença de ' + brl(dif) + ' (pode ser saldo anterior, juros ou linhas não lidas).';
+  } else {
+    t = 'Soma de todas as compras lidas: ' + brl(tTodas) + '.';
+  }
+  if(nDup) t += ' ' + nDup + ' compra(s) parecem já existir e vieram desmarcadas.';
+  $('totFat').textContent = t;
+}
+
+function render(){
+  const el = $('linhas');
+  el.innerHTML = '';
+  linhas.forEach(l => {
+    const row = document.createElement('div');
+    row.className = 'lin' + (l.dup ? ' dup' : '');
+    const top = document.createElement('label');
+    top.className = 't';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = l.marcar;
+    cb.onchange = () => { l.marcar = cb.checked; resumo(); };
+    const nome = document.createElement('span');
+    nome.className = 'n';
+    nome.textContent = l.desc;
+    const val = document.createElement('span');
+    val.className = 'v';
+    val.textContent = brl(l.valor);
+    top.appendChild(cb); top.appendChild(nome); top.appendChild(val);
+    const sub = document.createElement('div');
+    sub.className = 's';
+    const info = document.createElement('span');
+    info.textContent = fmtData(l.data) + (l.parcelas > 1 ? ' · parcela ' + l.parcela + '/' + l.parcelas : '') + (l.dup ? ' · já existe?' : '');
+    const sel = document.createElement('select');
+    CATEGORIAS.forEach(c => { const o = document.createElement('option'); o.value = c; o.textContent = c; sel.appendChild(o); });
+    sel.value = l.cat;
+    sel.onchange = () => { l.cat = sel.value; };
+    sub.appendChild(info); sub.appendChild(sel);
+    row.appendChild(top); row.appendChild(sub);
+    el.appendChild(row);
+  });
+  const ign = $('ign');
+  ign.hidden = !ignoradas.length;
+  $('ignTit').textContent = 'Linhas com valor não importadas (' + ignoradas.length + ')';
+  const lista = $('ignLista');
+  lista.innerHTML = '';
+  ignoradas.forEach(t => { const d = document.createElement('div'); d.style.padding = '4px 0'; d.textContent = t; lista.appendChild(d); });
+  resumo();
+}
+
+/* ---------- Importar ---------- */
+async function importar(){
+  const meio = $('meio').value;
+  if(!meio) return toast('Escolha o cartão desta fatura', true);
+  const sel = linhas.filter(l => l.marcar);
+  if(!sel.length) return toast('Nenhuma compra selecionada', true);
+  const rows = sel.map(l => ({
+    data: l.data, valor: l.valor, categoria: l.cat, tipo: 'variavel', descricao: l.desc,
+    meio_pagamento: meio, parcelas: l.parcelas, parcela_numero: l.parcela, recompensa: 0, origem: 'fatura'
+  }));
+  $('btnImportar').disabled = true;
+  const {error} = await db.from('gastos').insert(rows);
+  $('btnImportar').disabled = false;
+  if(error) return toast('Erro: ' + error.message, true);
+  toast(rows.length + ' lançamentos importados ✓');
+  linhas = []; ignoradas = [];
+  $('prev').hidden = true;
+  $('arq').value = '';
+  $('status').textContent = 'Importação concluída: ' + rows.length + ' lançamentos.';
+}
+
 $('arq').onchange = e => { if(e.target.files[0]) lerPdf(e.target.files[0]); };
-$('soValores').onchange = mostrar;
-$('btnCopiar').onclick = async () => {
-  const t = $('saida').value;
-  if(!t) return toast('Nada para copiar', true);
-  try { await navigator.clipboard.writeText(t); toast('Copiado ✓'); }
-  catch(e){ $('saida').select(); document.execCommand('copy'); toast('Copiado ✓'); }
-};
+$('btnLer').onclick = interpretar;
+$('meio').onchange = async () => { await marcarDuplicados($('meio').value); render(); };
+$('btnImportar').onclick = importar;
+
+(async () => {
+  const {data} = await db.auth.getSession();
+  if(!data.session){ location.href = 'index.html'; }
+})();
 </script>
 </body>
 </html>
