@@ -26,6 +26,8 @@ summary{cursor:pointer;color:var(--pri);margin-top:14px}
 .link{background:none;border:0;color:var(--mut);font-size:16px;padding:8px;text-decoration:none}
 .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
 .mut{color:var(--mut);font-size:13px}
+.opt{display:flex;align-items:center;gap:10px;color:var(--txt);font-size:14px;margin:14px 0 0}
+.opt input{width:20px;height:20px;flex:none}
 .lin{padding:10px 0;border-bottom:1px solid var(--bd)}
 .lin.dup{opacity:.55}
 .lin .t{display:flex;align-items:center;gap:10px;font-size:15px;margin:0;color:var(--txt)}
@@ -65,6 +67,8 @@ summary{cursor:pointer;color:var(--pri);margin-top:14px}
       <select id="meio" style="width:100%"></select>
       <div id="resumoImp" style="margin-top:12px;font-weight:600"></div>
       <div id="totFat" class="mut" style="margin-top:4px"></div>
+      <label class="opt"><input type="checkbox" id="futuras" checked> Criar também as parcelas dos próximos meses</label>
+      <div id="futTxt" class="mut" style="margin-top:4px"></div>
     </div>
     <div class="card" style="margin-top:12px"><div id="linhas"></div></div>
     <details id="ign">
@@ -119,12 +123,13 @@ const brl = v => Number(v).toLocaleString('pt-BR', {style:'currency', currency:'
 const sem = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 const pn = s => parseFloat(s.replace(/\./g, '').replace(',', '.'));
 const ymd = d => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+const chaveParc = (d, p, n) => sem(d || '').toUpperCase().replace(/\s+/g, ' ').trim() + '|' + p + '|' + n;
 function toast(m, erro){
   const t = $('toast');
   t.textContent = m;
   t.className = erro ? 'show erro' : 'show';
   clearTimeout(toast.t);
-  toast.t = setTimeout(() => t.className = '', 3000);
+  toast.t = setTimeout(() => t.className = '', 3500);
 }
 function addMeses(s, n){
   const [y, m, d] = s.split('-').map(Number);
@@ -277,18 +282,25 @@ async function carregarMeios(){
   meiosOk = true;
 }
 
+/* Duplicados: mesma data+valor no mesmo cartão, ou mesma parcela (descrição + número) já lançada */
 async function marcarDuplicados(meio){
   linhas.forEach(l => { l.dup = false; l.marcar = true; });
   if(!meio || !linhas.length) return;
   const datas = linhas.map(l => l.data).sort();
   const r = await db.from('gastos').select('data,valor')
     .eq('meio_pagamento', meio).gte('data', datas[0]).lte('data', datas[datas.length - 1]);
-  if(r.error){ toast('Erro ao checar duplicados: ' + r.error.message, true); return; }
+  const r2 = await db.from('gastos').select('descricao,parcela_numero,parcelas')
+    .eq('meio_pagamento', meio).gt('parcelas', 1);
+  if(r.error || r2.error){ toast('Erro ao checar duplicados', true); return; }
   const cont = {};
   r.data.forEach(x => { const k = x.data + '|' + Number(x.valor).toFixed(2); cont[k] = (cont[k] || 0) + 1; });
+  const parc = new Set(r2.data.map(x => chaveParc(x.descricao, x.parcela_numero, x.parcelas)));
   linhas.forEach(l => {
     const k = l.data + '|' + l.valor.toFixed(2);
-    if(cont[k] > 0){ cont[k]--; l.dup = true; l.marcar = false; }
+    const bate = cont[k] > 0;
+    if(bate) cont[k]--;
+    const porParcela = l.parcelas > 1 && parc.has(chaveParc(l.desc, l.parcela, l.parcelas));
+    if(bate || porParcela){ l.dup = true; l.marcar = false; }
   });
 }
 
@@ -309,6 +321,12 @@ function resumo(){
   }
   if(nDup) t += ' ' + nDup + ' compra(s) parecem já existir e vieram desmarcadas.';
   $('totFat').textContent = t;
+
+  let nf = 0, vf = 0;
+  if($('futuras').checked){
+    sel.forEach(l => { if(l.parcelas > l.parcela){ nf += l.parcelas - l.parcela; vf += (l.parcelas - l.parcela) * l.valor; } });
+  }
+  $('futTxt').textContent = nf ? '+ ' + nf + ' parcela(s) futura(s), somando ' + brl(vf) + ', serão criadas nos próximos meses.' : '';
 }
 
 function render(){
@@ -357,24 +375,34 @@ async function importar(){
   if(!meio) return toast('Escolha o cartão desta fatura', true);
   const sel = linhas.filter(l => l.marcar);
   if(!sel.length) return toast('Nenhuma compra selecionada', true);
-  const rows = sel.map(l => ({
-    data: l.data, valor: l.valor, categoria: l.cat, tipo: 'variavel', descricao: l.desc,
-    meio_pagamento: meio, parcelas: l.parcelas, parcela_numero: l.parcela, recompensa: 0, origem: 'fatura'
-  }));
+  const comFut = $('futuras').checked;
+  const mk = (l, k, d) => ({
+    data: d, valor: l.valor, categoria: l.cat, tipo: 'variavel', descricao: l.desc,
+    meio_pagamento: meio, parcelas: l.parcelas, parcela_numero: k, recompensa: 0, origem: 'fatura'
+  });
+  const rows = [];
+  sel.forEach(l => {
+    rows.push(mk(l, l.parcela, l.data));
+    if(comFut && l.parcelas > l.parcela){
+      for(let k = l.parcela + 1; k <= l.parcelas; k++) rows.push(mk(l, k, addMeses(l.data, k - l.parcela)));
+    }
+  });
   $('btnImportar').disabled = true;
   const {error} = await db.from('gastos').insert(rows);
   $('btnImportar').disabled = false;
   if(error) return toast('Erro: ' + error.message, true);
-  toast(rows.length + ' lançamentos importados ✓');
+  const fut = rows.length - sel.length;
+  toast(sel.length + ' compras importadas' + (fut ? ' + ' + fut + ' parcelas futuras' : '') + ' ✓');
   linhas = []; ignoradas = [];
   $('prev').hidden = true;
   $('arq').value = '';
-  $('status').textContent = 'Importação concluída: ' + rows.length + ' lançamentos.';
+  $('status').textContent = 'Importação concluída: ' + sel.length + ' compras' + (fut ? ' e ' + fut + ' parcelas futuras.' : '.');
 }
 
 $('arq').onchange = e => { if(e.target.files[0]) lerPdf(e.target.files[0]); };
 $('btnLer').onclick = interpretar;
 $('meio').onchange = async () => { await marcarDuplicados($('meio').value); render(); };
+$('futuras').onchange = resumo;
 $('btnImportar').onclick = importar;
 
 (async () => {
