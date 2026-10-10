@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f766e">
+<title>Gastos</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--txt:#111827;--mut:#6b7280;--pri:#0f766e;--bd:#e5e7eb;--err:#b91c1c}
+@media(prefers-color-scheme:dark){:root{--bg:#0b0f14;--card:#151b23;--txt:#e5e7eb;--mut:#9ca3af;--bd:#263040;--pri:#14b8a6;--err:#f87171}}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--txt);padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+.wrap{max-width:480px;margin:0 auto;padding:16px}
+h1{margin:8px 0 16px}
+h2{font-size:16px;margin:24px 0 8px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:16px}
+label{display:block;font-size:13px;color:var(--mut);margin:14px 0 6px}
+label:first-child{margin-top:0}
+input,select{width:100%;padding:12px;font-size:16px;border:1px solid var(--bd);border-radius:10px;background:var(--bg);color:var(--txt)}
+.big{font-size:32px;font-weight:700}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{padding:10px 14px;border-radius:999px;border:1px solid var(--bd);background:var(--card);color:var(--txt);font-size:15px}
+.chip.on{background:var(--pri);border-color:var(--pri);color:#fff}
+.btn{width:100%;padding:16px;margin-top:16px;border:0;border-radius:12px;background:var(--pri);color:#fff;font-size:18px;font-weight:600}
+.btn:disabled{opacity:.6}
+.link{background:none;border:0;color:var(--mut);font-size:14px;padding:8px}
+summary{cursor:pointer;color:var(--pri);margin-top:14px}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.total{font-size:28px;font-weight:700}
+.mut{color:var(--mut);font-size:13px;text-transform:capitalize}
+.err{color:var(--err);font-size:14px;min-height:18px}
+.item{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--bd)}
+.item small{color:var(--mut);display:block}
+.item .dir{display:flex;align-items:center;gap:4px;white-space:nowrap;font-weight:600}
+.item button{background:none;border:0;color:var(--mut);font-size:18px;padding:6px}
+#toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#111827;color:#fff;padding:10px 16px;border-radius:10px;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90%}
+#toast.show{opacity:1}
+#toast.erro{background:var(--err)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<section id="login" hidden>
+  <h1>Gastos</h1>
+  <div class="card">
+    <label for="email">E-mail</label>
+    <input id="email" type="email" autocomplete="username">
+    <label for="senha">Senha</label>
+    <input id="senha" type="password" autocomplete="current-password">
+    <button id="btnLogin" class="btn">Entrar</button>
+    <p id="erroLogin" class="err"></p>
+  </div>
+</section>
+
+<section id="app" hidden>
+  <div class="top">
+    <div><div class="mut" id="mesLabel"></div><div class="total" id="total">R$ 0,00</div></div>
+    <button id="btnSair" class="link">Sair</button>
+  </div>
+  <div class="card">
+    <label for="valor">Valor (R$)</label>
+    <input id="valor" class="big" inputmode="decimal" placeholder="0,00" autocomplete="off">
+    <label>Onde</label>
+    <div id="meios" class="chips"></div>
+    <label>Categoria</label>
+    <div id="cats" class="chips"></div>
+    <label for="desc">Descrição (opcional)</label>
+    <input id="desc" autocomplete="off">
+    <details>
+      <summary>Mais opções</summary>
+      <label for="data">Data</label>
+      <input id="data" type="date">
+      <label for="parcelas">Parcelas</label>
+      <input id="parcelas" type="number" min="1" max="48" value="1" inputmode="numeric">
+      <label for="tipo">Tipo</label>
+      <select id="tipo"><option value="variavel">Variável</option><option value="fixo">Fixo</option></select>
+      <label for="rec">Recompensa (cashback, R$)</label>
+      <input id="rec" inputmode="decimal" placeholder="0,00" autocomplete="off">
+    </details>
+    <button id="btnSalvar" class="btn">Salvar gasto</button>
+  </div>
+  <h2>Últimos lançamentos</h2>
+  <div id="lista"></div>
+</section>
+
+</div>
+<div id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.1/dist/umd/supabase.js"></script>
+<script>
+const SUPABASE_URL = 'https://rgxtcesazjjongzzundn.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_dcaO4K5PeljI7vogQHQaxg_3hH_pIGT';
+const CATEGORIAS = ['Mercado','Alimentação','Transporte','Moradia','Saúde','Lazer','Educação','Assinaturas','Compras','Outros'];
+
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const $ = id => document.getElementById(id);
+let meio = localStorage.getItem('meio') || '';
+let cat = '';
+
+function hoje(){
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+function addMeses(s, n){
+  const [y, m, d] = s.split('-').map(Number);
+  const t = new Date(y, m - 1 + n, 1);
+  const ult = new Date(t.getFullYear(), t.getMonth() + 1, 0).getDate();
+  return t.getFullYear() + '-' + String(t.getMonth()+1).padStart(2,'0') + '-' + String(Math.min(d, ult)).padStart(2,'0');
+}
+const brl = v => Number(v).toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
+function num(s){
+  s = (s || '').trim();
+  s = s.includes(',') ? s.replace(/\./g,'').replace(',','.') : s;
+  const n = parseFloat(s);
+  return isNaN(n) ? 0 : n;
+}
+function toast(m, erro){
+  const t = $('toast');
+  t.textContent = m;
+  t.className = erro ? 'show erro' : 'show';
+  clearTimeout(toast.t);
+  toast.t = setTimeout(() => t.className = '', 2500);
+}
+function chips(el, itens, sel, onSel){
+  el.innerHTML = '';
+  itens.forEach(n => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'chip' + (n === sel ? ' on' : '');
+    b.textContent = n;
+    b.onclick = () => { onSel(n); chips(el, itens, n, onSel); };
+    el.appendChild(b);
+  });
+}
+
+async function carregarMeios(){
+  const {data, error} = await db.from('meios_pagamento').select('nome').order('nome');
+  if(error){ toast('Erro: ' + error.message, true); return; }
+  const nomes = data.map(x => x.nome);
+  if(!nomes.includes(meio)) meio = nomes[0] || '';
+  chips($('meios'), nomes, meio, n => { meio = n; localStorage.setItem('meio', n); });
+}
+
+async function resumo(){
+  const ini = hoje().slice(0,8) + '01';
+  const fim = addMeses(ini, 1);
+  $('mesLabel').textContent = new Date().toLocaleDateString('pt-BR', {month:'long', year:'numeric'});
+  const a = await db.from('gastos').select('valor').gte('data', ini).lt('data', fim);
+  if(!a.error) $('total').textContent = brl(a.data.reduce((s, x) => s + Number(x.valor), 0));
+
+  const b = await db.from('gastos')
+    .select('id,data,valor,categoria,meio_pagamento,descricao,parcelas,parcela_numero')
+    .order('data', {ascending:false}).order('criado_em', {ascending:false}).limit(8);
+  const lista = $('lista');
+  lista.innerHTML = '';
+  if(b.error){ lista.textContent = 'Erro ao carregar a lista.'; return; }
+  if(!b.data.length){ lista.textContent = 'Nenhum gasto ainda.'; return; }
+  b.data.forEach(g => {
+    const [y, m, d] = g.data.split('-');
+    const item = document.createElement('div');
+    item.className = 'item';
+    const esq = document.createElement('div');
+    const l1 = document.createElement('div');
+    l1.textContent = g.categoria + ' · ' + g.meio_pagamento;
+    const l2 = document.createElement('small');
+    let t = d + '/' + m;
+    if(g.parcelas > 1) t += ' · ' + g.parcela_numero + '/' + g.parcelas;
+    if(g.descricao) t += ' · ' + g.descricao;
+    l2.textContent = t;
+    esq.appendChild(l1); esq.appendChild(l2);
+    const dir = document.createElement('div');
+    dir.className = 'dir';
+    const v = document.createElement('span');
+    v.textContent = brl(g.valor);
+    const x = document.createElement('button');
+    x.textContent = '✕';
+    x.onclick = () => apagar(g.id);
+    dir.appendChild(v); dir.appendChild(x);
+    item.appendChild(esq); item.appendChild(dir);
+    lista.appendChild(item);
+  });
+}
+
+async function apagar(id){
+  if(!confirm('Apagar este lançamento?')) return;
+  const {error} = await db.from('gastos').delete().eq('id', id);
+  if(error) return toast('Erro: ' + error.message, true);
+  toast('Apagado');
+  resumo();
+}
+
+async function salvar(){
+  const v = num($('valor').value);
+  if(v <= 0) return toast('Informe o valor', true);
+  if(!meio) return toast('Escolha onde foi o gasto', true);
+  if(!cat) return toast('Escolha a categoria', true);
+  const n = Math.max(1, parseInt($('parcelas').value) || 1);
+  const data = $('data').value || hoje();
+  const rec = num($('rec').value);
+  const cents = Math.round(v * 100);
+  const base = Math.floor(cents / n);
+  const resto = cents - base * n;
+  const linhas = [];
+  for(let i = 1; i <= n; i++){
+    linhas.push({
+      data: addMeses(data, i - 1),
+      valor: (base + (i === 1 ? resto : 0)) / 100,
+      categoria: cat,
+      tipo: $('tipo').value,
+      descricao: $('desc').value.trim() || null,
+      meio_pagamento: meio,
+      parcelas: n,
+      parcela_numero: i,
+      recompensa: i === 1 ? rec : 0,
+      origem: 'manual'
+    });
+  }
+  $('btnSalvar').disabled = true;
+  const {error} = await db.from('gastos').insert(linhas);
+  $('btnSalvar').disabled = false;
+  if(error) return toast('Erro: ' + error.message, true);
+  toast('Salvo ✓');
+  $('valor').value = ''; $('desc').value = ''; $('parcelas').value = 1;
+  $('rec').value = ''; $('tipo').value = 'variavel'; $('data').value = hoje();
+  cat = '';
+  chips($('cats'), CATEGORIAS, cat, n => cat = n);
+  resumo();
+}
+
+async function mostrar(){
+  const {data} = await db.auth.getSession();
+  const logado = !!data.session;
+  $('login').hidden = logado;
+  $('app').hidden = !logado;
+  if(logado){
+    $('data').value = hoje();
+    chips($('cats'), CATEGORIAS, cat, n => cat = n);
+    await carregarMeios();
+    resumo();
+  }
+}
+
+$('btnLogin').onclick = async () => {
+  $('erroLogin').textContent = '';
+  const {error} = await db.auth.signInWithPassword({email: $('email').value.trim(), password: $('senha').value});
+  if(error) $('erroLogin').textContent = 'E-mail ou senha incorretos';
+  else mostrar();
+};
+$('btnSair').onclick = async () => { await db.auth.signOut(); mostrar(); };
+$('btnSalvar').onclick = salvar;
+
+mostrar();
+</script>
+</body>
+</html>
