@@ -48,7 +48,7 @@ summary{cursor:pointer;color:var(--pri);margin-top:14px}
   </div>
 
   <div class="card">
-    <label for="arq">Arquivo PDF da fatura</label>
+    <label for="arq">Arquivo PDF da fatura (Inter ou Itaú)</label>
     <input id="arq" type="file" accept="application/pdf">
     <div id="status" class="mut" style="margin-top:8px">O PDF é lido aqui no celular. Nada é enviado para a internet.</div>
     <details>
@@ -87,9 +87,20 @@ const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const $ = id => document.getElementById(id);
 
 const MESES = {jan:1,fev:2,mar:3,abr:4,mai:5,jun:6,jul:7,ago:8,set:9,out:10,nov:11,dez:12};
-const reLinha = /^(\d{1,2}) de ([a-zç]{3,9})\.? (\d{4}) (.+?)\s+-\s+R\$\s*(-?)\s*([\d.]+,\d{2})\s*$/i;
-const reCab = /^\d{4}[*•x]{2,}\d{4}\s+(\d{2})\/(\d{2})\/(\d{4})\s+R\$\s*([\d.]+,\d{2})\s*$/i;
+/* Inter: "12 de jul. 2026 DESCRIÇÃO (Parcela 03 de 04) - R$ 132,27" */
+const reInter = /^(\d{1,2}) de ([a-zç]{3,9})\.? (\d{4}) (.+?)\s+-\s+R\$\s*(-?)\s*([\d.]+,\d{2})\s*$/i;
+const reCabInter = /^\d{4}[*•x]{2,}\d{4}\s+(\d{2})\/(\d{2})\/(\d{4})\s+R\$\s*([\d.]+,\d{2})\s*$/i;
 const reParc = /\(Parcela\s+(\d+)\s+de\s+(\d+)\)/i;
+/* Itaú: "17/08 BAZAR SP 01/04 49,99 [texto da coluna de limites]" e, na linha de baixo, "VESTUÁRIO .SAO PAULO" */
+const reItau = /^(\d{2})\/(\d{2}) (.+?)(?: (\d{2})\/(\d{2}))? (-?[\d.]+,\d{2})(?: |$)/;
+const reCatBanco = /^([A-ZÀ-Ý][A-ZÀ-Ý \/&]*?)\s\.[A-ZÀ-Ý ]*/;
+const reSub = /lancamentos no cartao \(final (\d{4})\)\s+([\d.]+,\d{2})/i;
+
+const CAT_BANCO = {
+  'ALIMENTACAO':'Alimentação','RESTAURANTE':'Alimentação','SUPERMERCADO':'Mercado',
+  'VESTUARIO':'Compras','EDUCACAO':'Educação','SAUDE':'Saúde','TRANSPORTE':'Transporte',
+  'VEICULOS':'Transporte','LAZER':'Lazer','TURISMO E ENTRETENIMENTO':'Lazer','HOBBY':'Lazer'
+};
 
 /* Palavras-chave para sugerir categoria (a ordem importa) */
 const REGRAS = [
@@ -107,6 +118,7 @@ let linhas = [], ignoradas = [], totalFatura = null, venc = '', meiosOk = false;
 const brl = v => Number(v).toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
 const sem = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 const pn = s => parseFloat(s.replace(/\./g, '').replace(',', '.'));
+const ymd = d => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
 function toast(m, erro){
   const t = $('toast');
   t.textContent = m;
@@ -127,6 +139,16 @@ function sugerir(desc){
     if(palavras.some(p => d.includes(p))) return cat;
   }
   return 'Outros';
+}
+/* Itaú não traz o ano: usa o ano mais recente em que a data da cobrança não fica no futuro */
+function dataItau(dd, mm, parc){
+  const h = new Date();
+  const lim = ymd(new Date(h.getFullYear(), h.getMonth(), h.getDate() + 10));
+  for(let y = h.getFullYear(); y >= h.getFullYear() - 3; y--){
+    const dl = addMeses(y + '-' + mm + '-' + dd, parc - 1);
+    if(dl <= lim) return dl;
+  }
+  return addMeses(h.getFullYear() + '-' + mm + '-' + dd, parc - 1);
 }
 
 /* ---------- Leitura do PDF ---------- */
@@ -166,17 +188,28 @@ async function lerPdf(file){
 
 /* ---------- Interpretação das linhas ---------- */
 function interpretar(){
-  const brutas = $('txt').value.split('\n').map(s => s.replace(/\s+/g, ' ').trim()).filter(Boolean);
+  const brutas = $('txt').value.split('\n')
+    .map(s => s.normalize('NFC').replace(/\s+/g, ' ').trim()).filter(Boolean);
   linhas = []; ignoradas = []; totalFatura = null; venc = '';
+  const subt = {};
+  let ultimo = null;
+
   brutas.forEach(l => {
     if(/^---/.test(l)) return;
-    let m = l.match(reCab);
+
+    let m = l.match(reCabInter);
     if(m){
       if(totalFatura === null){ totalFatura = pn(m[4]); venc = m[1] + '/' + m[2] + '/' + m[3]; }
+      ultimo = null;
       return;
     }
-    m = l.match(reLinha);
+
+    m = sem(l).match(reSub);
+    if(m){ subt[m[1]] = pn(m[2]); ultimo = null; return; }
+
+    m = l.match(reInter);
     if(m){
+      ultimo = null;
       const mes = MESES[sem(m[2]).toLowerCase().slice(0, 3)];
       if(!mes){ ignoradas.push(l); return; }
       let desc = m[4].trim(), parc = 1, tot = 1;
@@ -189,8 +222,37 @@ function interpretar(){
       linhas.push({data: addMeses(d0, parc - 1), valor: v, desc: desc, cat: sugerir(desc), parcela: parc, parcelas: tot, marcar: true, dup: false});
       return;
     }
-    if(/R\$/.test(l)) ignoradas.push(l);
+
+    m = l.match(reItau);
+    if(m){
+      const parc = m[4] ? +m[4] : 1, tot = m[5] ? +m[5] : 1;
+      const bruto = m[6];
+      const desc = m[3].replace(/\s+/g, ' ').trim();
+      const v = pn(bruto.replace('-', ''));
+      const credito = bruto.startsWith('-') || /PAGAMENTO|ESTORNO|CREDITO/.test(sem(desc).toUpperCase());
+      if(credito || !(v > 0) || parc < 1 || parc > tot || +m[2] < 1 || +m[2] > 12){ ignoradas.push(l); ultimo = null; return; }
+      const nova = {data: dataItau(m[1], m[2], parc), valor: v, desc: desc, cat: sugerir(desc), parcela: parc, parcelas: tot, marcar: true, dup: false};
+      linhas.push(nova);
+      ultimo = nova;
+      return;
+    }
+
+    if(ultimo){
+      const c = l.match(reCatBanco);
+      if(c){
+        const k = CAT_BANCO[sem(c[1]).toUpperCase().trim()];
+        if(k && ultimo.cat === 'Outros') ultimo.cat = k;
+        ultimo = null;
+        return;
+      }
+    }
+    ultimo = null;
+    if(/R\$\s*-?\s*\d/.test(l) || /^\d{2}\/\d{2}\s/.test(l)) ignoradas.push(l);
   });
+
+  const ks = Object.keys(subt);
+  if(totalFatura === null && ks.length) totalFatura = ks.reduce((a, k) => a + subt[k], 0);
+
   if(!linhas.length){
     $('prev').hidden = true;
     $('status').textContent = 'Não reconheci nenhuma compra neste texto. Me mande algumas linhas para eu ajustar.';
@@ -240,7 +302,7 @@ function resumo(){
   let t = '';
   if(totalFatura !== null){
     const dif = totalFatura - tTodas;
-    t = 'Total da fatura no PDF: ' + brl(totalFatura) + ' (venc. ' + venc + '). Soma das compras lidas: ' + brl(tTodas) + '. ';
+    t = 'Total informado no PDF: ' + brl(totalFatura) + (venc ? ' (venc. ' + venc + ')' : '') + '. Soma das compras lidas: ' + brl(tTodas) + '. ';
     t += Math.abs(dif) < 0.01 ? '✓ Confere.' : 'Diferença de ' + brl(dif) + ' (pode ser saldo anterior, juros ou linhas não lidas).';
   } else {
     t = 'Soma de todas as compras lidas: ' + brl(tTodas) + '.';
@@ -282,7 +344,7 @@ function render(){
   });
   const ign = $('ign');
   ign.hidden = !ignoradas.length;
-  $('ignTit').textContent = 'Linhas com valor não importadas (' + ignoradas.length + ')';
+  $('ignTit').textContent = 'Linhas não importadas (' + ignoradas.length + ')';
   const lista = $('ignLista');
   lista.innerHTML = '';
   ignoradas.forEach(t => { const d = document.createElement('div'); d.style.padding = '4px 0'; d.textContent = t; lista.appendChild(d); });
