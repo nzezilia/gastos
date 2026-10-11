@@ -30,6 +30,10 @@ select{width:100%;padding:12px;font-size:16px;border:1px solid var(--bd);border-
 .cmp{font-size:13px;margin-top:8px;color:var(--mut)}
 .cmp.up{color:var(--err)}
 .cmp.down{color:#16a34a}
+.pdv{font-size:28px;font-weight:700;margin:6px 0 2px;color:var(--pri)}
+.pdv.over{color:var(--err)}
+.pdh{font-size:14px;margin-top:10px;padding-top:10px;border-top:1px solid var(--bd)}
+.pdh.over{color:var(--err)}
 .barra{height:10px;background:var(--bd);border-radius:999px;overflow:hidden;margin:10px 0 6px}
 .barra i{display:block;height:100%;width:0;background:#16a34a}
 .barra.warn i{background:#d97706}
@@ -83,6 +87,14 @@ select{width:100%;padding:12px;font-size:16px;border:1px solid var(--bd);border-
     <div class="total" id="total">R$ 0,00</div>
     <div class="mut" id="rec"></div>
     <div class="cmp" id="cmp"></div>
+  </div>
+
+  <div class="card" id="pdCard" style="margin-top:12px" hidden>
+    <div class="mut"><i class="ti ti-wallet"></i> Para fechar dentro do orçamento</div>
+    <div class="pdv" id="pdVal"></div>
+    <div class="mut" id="pdSub"></div>
+    <div class="pdh" id="pdHoje"></div>
+    <div class="mut" style="margin-top:8px">Considera todos os gastos do mês, inclusive parcelas e despesas fixas que ainda vão cair. Não muda com os filtros.</div>
   </div>
 
   <div class="card" style="margin-top:12px">
@@ -227,6 +239,57 @@ function barras(el, pares, total, opt){
   });
 }
 
+/* ---------- Quanto posso gastar por dia ---------- */
+function renderPorDia(totMes){
+  const card = $('pdCard');
+  const hj = hoje();
+  if(mes.slice(0, 7) !== hj.slice(0, 7)){ card.hidden = true; return; }
+  card.hidden = false;
+  const val = $('pdVal'), sub = $('pdSub'), hojeEl = $('pdHoje');
+  hojeEl.className = 'pdh';
+  val.className = 'pdv';
+
+  if(!(limite > 0)){
+    val.textContent = 'Defina um limite';
+    sub.textContent = 'Toque em "Editar limite", no orçamento abaixo, para ver quanto pode gastar por dia.';
+    hojeEl.hidden = true;
+    return;
+  }
+  hojeEl.hidden = false;
+
+  const dia = +hj.slice(8, 10);
+  const diasMes = new Date(+hj.slice(0, 4), +hj.slice(5, 7), 0).getDate();
+  const R = diasMes - dia + 1;
+  const H = soma(dados.filter(x => x.data === hj));
+  const antes = totMes - H;
+  const A = limite - antes;
+
+  if(A <= 0){
+    val.className = 'pdv over';
+    val.textContent = 'Orçamento esgotado';
+    sub.textContent = A < 0
+      ? 'Os gastos e compromissos do mês passam do limite em ' + brl(-A) + '.'
+      : 'O limite do mês já foi totalmente usado.';
+    hojeEl.textContent = H > 0 ? 'Hoje: gastou ' + brl(H) + '.' : 'Hoje: nenhum gasto até agora.';
+    return;
+  }
+
+  const a = A / R;
+  val.textContent = brl(a) + ' por dia';
+  sub.textContent = R === 1
+    ? 'hoje é o último dia do mês'
+    : 'até o fim do mês: ' + R + ' dias, contando hoje';
+  const sobra = a - H;
+  if(H === 0){
+    hojeEl.textContent = 'Hoje: nenhum gasto até agora.';
+  } else if(sobra >= 0){
+    hojeEl.textContent = 'Hoje: gastou ' + brl(H) + ' · ainda pode gastar ' + brl(sobra);
+  } else {
+    hojeEl.className = 'pdh over';
+    hojeEl.textContent = 'Hoje: gastou ' + brl(H) + ' · ' + brl(-sobra) + ' acima do valor do dia';
+  }
+}
+
 /* ---------- Últimos 6 meses e comparação ---------- */
 async function buscarPeriodo(ini, fim){
   let tudo = [], de = 0;
@@ -357,6 +420,7 @@ function render(){
     $('orcRest').textContent = '';
   }
 
+  renderPorDia(totMes);
   renderHist();
 
   document.querySelectorAll('.aba').forEach(b => b.classList.toggle('on', b.dataset.aba === aba));
