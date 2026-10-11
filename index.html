@@ -3,10 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0f766e">
+<meta name="theme-color" content="#4f46e5">
 <title>Gastos</title>
-  <link rel="stylesheet" href="estilo.css">
+<link rel="stylesheet" href="estilo.css">
 <script src="nav.js" defer></script>
+<script src="editar.js" defer></script>
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -14,8 +15,8 @@
 <meta name="apple-mobile-web-app-title" content="Gastos">
 <script>if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js')</script>
 <style>
-:root{--bg:#f6f7f9;--card:#fff;--txt:#111827;--mut:#6b7280;--pri:#0f766e;--bd:#e5e7eb;--err:#b91c1c}
-@media(prefers-color-scheme:dark){:root{--bg:#0b0f14;--card:#151b23;--txt:#e5e7eb;--mut:#9ca3af;--bd:#263040;--pri:#14b8a6;--err:#f87171}}
+:root{--bg:#f4f5fb;--card:#fff;--txt:#0f172a;--mut:#64748b;--pri:#4f46e5;--bd:#e4e7f1;--err:#dc2626}
+@media(prefers-color-scheme:dark){:root{--bg:#0a0c16;--card:#12162a;--txt:#e8eaf6;--mut:#98a2c3;--bd:#23294a;--pri:#6366f1;--err:#f87171}}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--txt);padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
@@ -40,8 +41,7 @@ summary{cursor:pointer;color:var(--pri);margin-top:14px}
 .err{color:var(--err);font-size:14px;min-height:18px}
 .item{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--bd)}
 .item small{color:var(--mut);display:block}
-.item .dir{display:flex;align-items:center;gap:4px;white-space:nowrap;font-weight:600}
-.item button{background:none;border:0;color:var(--mut);font-size:18px;padding:6px}
+.item .dir{font-weight:600;white-space:nowrap}
 #toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#111827;color:#fff;padding:10px 16px;border-radius:10px;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90%}
 #toast.show{opacity:1}
 #toast.erro{background:var(--err)}
@@ -76,6 +76,7 @@ summary{cursor:pointer;color:var(--pri);margin-top:14px}
     <div id="cats" class="chips"></div>
     <label for="desc">Descrição (opcional)</label>
     <input id="desc" autocomplete="off">
+    <div id="sugestoes" class="chips" style="margin-top:8px"></div>
     <details>
       <summary>Mais opções</summary>
       <label for="data">Data</label>
@@ -89,9 +90,8 @@ summary{cursor:pointer;color:var(--pri);margin-top:14px}
     </details>
     <button id="btnSalvar" class="btn">Salvar gasto</button>
   </div>
-  <a href="resumo.html" class="link" style="display:block;text-align:center;padding:16px;text-decoration:none">Ver resumo do mês →</a>
-  <a href="ferramentas.html" class="link" style="display:block;text-align:center;padding:8px;text-decoration:none">Ferramentas e backup</a>
   <h2>Últimos lançamentos</h2>
+  <div class="mut" style="text-transform:none;margin:-4px 0 8px">Toque em um lançamento para editar ou apagar.</div>
   <div id="lista"></div>
 </section>
 
@@ -108,6 +108,8 @@ const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const $ = id => document.getElementById(id);
 let meio = localStorage.getItem('meio') || '';
 let cat = '';
+let nomesMeios = [];
+let historico = [];
 
 function hoje(){
   const d = new Date();
@@ -145,12 +147,73 @@ function chips(el, itens, sel, onSel){
   });
 }
 
+function desenharMeios(){
+  chips($('meios'), nomesMeios, meio, n => { meio = n; localStorage.setItem('meio', n); });
+}
+function desenharCats(){
+  chips($('cats'), CATEGORIAS, cat, n => cat = n);
+}
+
 async function carregarMeios(){
   const {data, error} = await db.from('meios_pagamento').select('nome').order('nome');
   if(error){ toast('Erro: ' + error.message, true); return; }
-  const nomes = data.map(x => x.nome);
-  if(!nomes.includes(meio)) meio = nomes[0] || '';
-  chips($('meios'), nomes, meio, n => { meio = n; localStorage.setItem('meio', n); });
+  nomesMeios = data.map(x => x.nome);
+  if(!nomesMeios.includes(meio)) meio = nomesMeios[0] || '';
+  desenharMeios();
+}
+
+async function carregarHistorico(){
+  const r = await db.from('gastos')
+    .select('descricao,categoria,meio_pagamento,valor,origem')
+    .not('descricao', 'is', null).eq('parcela_numero', 1).eq('tipo', 'variavel')
+    .order('data', {ascending:false}).limit(600);
+  if(r.error) return;
+  const m = new Map();
+  r.data.forEach(x => {
+    const d = (x.descricao || '').trim();
+    if(!d) return;
+    const k = d.toLowerCase();
+    const e = m.get(k);
+    if(e){ e.n++; if(x.origem === 'manual') e.manual = true; }
+    else m.set(k, {desc: d, cat: x.categoria, meio: x.meio_pagamento, valor: Number(x.valor), n: 1, manual: x.origem === 'manual'});
+  });
+  historico = [...m.values()];
+}
+
+function sugerir(){
+  const q = $('desc').value.trim().toLowerCase();
+  const box = $('sugestoes');
+  box.innerHTML = '';
+  let lista;
+  if(!q){
+    lista = historico.filter(h => h.manual).sort((a, b) => b.n - a.n).slice(0, 5);
+  } else {
+    lista = historico
+      .filter(h => h.desc.toLowerCase().includes(q) && h.desc.toLowerCase() !== q)
+      .sort((a, b) => {
+        const pa = a.desc.toLowerCase().startsWith(q) ? 0 : 1;
+        const pb = b.desc.toLowerCase().startsWith(q) ? 0 : 1;
+        return pa - pb || b.n - a.n;
+      })
+      .slice(0, 5);
+  }
+  lista.forEach(h => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'chip';
+    b.textContent = h.desc + ' · ' + brl(h.valor);
+    b.onmousedown = e => e.preventDefault();
+    b.onclick = () => aplicar(h);
+    box.appendChild(b);
+  });
+}
+
+function aplicar(h){
+  $('desc').value = h.desc;
+  if(CATEGORIAS.includes(h.cat)){ cat = h.cat; desenharCats(); }
+  if(nomesMeios.includes(h.meio)){ meio = h.meio; localStorage.setItem('meio', meio); desenharMeios(); }
+  if(!$('valor').value.trim()) $('valor').value = String(h.valor).replace('.', ',');
+  $('sugestoes').innerHTML = '';
 }
 
 async function resumo(){
@@ -171,6 +234,8 @@ async function resumo(){
     const [y, m, d] = g.data.split('-');
     const item = document.createElement('div');
     item.className = 'item';
+    item.style.cursor = 'pointer';
+    item.onclick = () => abrirEdicao(g.id, () => { resumo(); carregarHistorico(); });
     const esq = document.createElement('div');
     const l1 = document.createElement('div');
     l1.textContent = g.categoria + ' · ' + g.meio_pagamento;
@@ -182,23 +247,10 @@ async function resumo(){
     esq.appendChild(l1); esq.appendChild(l2);
     const dir = document.createElement('div');
     dir.className = 'dir';
-    const v = document.createElement('span');
-    v.textContent = brl(g.valor);
-    const x = document.createElement('button');
-    x.textContent = '✕';
-    x.onclick = () => apagar(g.id);
-    dir.appendChild(v); dir.appendChild(x);
+    dir.textContent = brl(g.valor);
     item.appendChild(esq); item.appendChild(dir);
     lista.appendChild(item);
   });
-}
-
-async function apagar(id){
-  if(!confirm('Apagar este lançamento?')) return;
-  const {error} = await db.from('gastos').delete().eq('id', id);
-  if(error) return toast('Erro: ' + error.message, true);
-  toast('Apagado');
-  resumo();
 }
 
 async function salvar(){
@@ -234,9 +286,11 @@ async function salvar(){
   toast('Salvo ✓');
   $('valor').value = ''; $('desc').value = ''; $('parcelas').value = 1;
   $('rec').value = ''; $('tipo').value = 'variavel'; $('data').value = hoje();
+  $('sugestoes').innerHTML = '';
   cat = '';
-  chips($('cats'), CATEGORIAS, cat, n => cat = n);
+  desenharCats();
   resumo();
+  carregarHistorico();
 }
 
 async function mostrar(){
@@ -246,9 +300,10 @@ async function mostrar(){
   $('app').hidden = !logado;
   if(logado){
     $('data').value = hoje();
-    chips($('cats'), CATEGORIAS, cat, n => cat = n);
+    desenharCats();
     await carregarMeios();
     resumo();
+    carregarHistorico();
   }
 }
 
@@ -260,6 +315,9 @@ $('btnLogin').onclick = async () => {
 };
 $('btnSair').onclick = async () => { await db.auth.signOut(); mostrar(); };
 $('btnSalvar').onclick = salvar;
+$('desc').addEventListener('input', sugerir);
+$('desc').addEventListener('focus', sugerir);
+$('desc').addEventListener('blur', () => setTimeout(() => { $('sugestoes').innerHTML = ''; }, 250));
 
 mostrar();
 </script>
