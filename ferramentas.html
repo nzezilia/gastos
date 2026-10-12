@@ -3,14 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0f766e">
+<meta name="theme-color" content="#4f46e5">
 <title>Ferramentas</title>
-  <link rel="stylesheet" href="estilo.css">
+<link rel="stylesheet" href="estilo.css">
 <script src="nav.js" defer></script>
-
 <style>
-:root{--bg:#f6f7f9;--card:#fff;--txt:#111827;--mut:#6b7280;--pri:#0f766e;--bd:#e5e7eb;--err:#b91c1c}
-@media(prefers-color-scheme:dark){:root{--bg:#0b0f14;--card:#151b23;--txt:#e5e7eb;--mut:#9ca3af;--bd:#263040;--pri:#14b8a6;--err:#f87171}}
+:root{--bg:#f4f5fb;--card:#fff;--txt:#0f172a;--mut:#64748b;--pri:#4f46e5;--bd:#e4e7f1;--err:#dc2626}
+@media(prefers-color-scheme:dark){:root{--bg:#0a0c16;--card:#12162a;--txt:#e8eaf6;--mut:#98a2c3;--bd:#23294a;--pri:#6366f1;--err:#f87171}}
 *{box-sizing:border-box}
 body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--txt);padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
 .wrap{max-width:480px;margin:0 auto;padding:16px}
@@ -71,7 +70,7 @@ summary{cursor:pointer;color:var(--pri);margin-top:14px}
 
   <h2>Cartões e meios de pagamento</h2>
   <div class="card">
-    <div class="mut">Os botões "Onde" da tela de lançamento vêm desta lista.</div>
+    <div class="mut">Os botões "Onde" da tela de lançamento vêm desta lista. Toque no lápis para informar o fechamento e o vencimento da fatura de um cartão de crédito.</div>
     <div id="listaMeios" style="margin-top:8px"></div>
     <details>
       <summary>Adicionar cartão ou meio</summary>
@@ -118,6 +117,12 @@ function toast(m, erro){
 }
 
 /* ---------- Cartões e meios de pagamento ---------- */
+async function lerMeios(){
+  let r = await db.from('meios_pagamento').select('nome,dia_fechamento,dia_vencimento').order('nome');
+  if(r.error) r = await db.from('meios_pagamento').select('nome').order('nome');
+  return r;
+}
+
 async function carregarOpcoes(){
   const c = $('fCat');
   c.innerHTML = '';
@@ -131,7 +136,7 @@ async function carregarOpcoes(){
 }
 
 async function carregarMeiosLista(){
-  const r = await db.from('meios_pagamento').select('nome').order('nome');
+  const r = await lerMeios();
   const el = $('listaMeios');
   el.innerHTML = '';
   if(r.error){ el.textContent = 'Erro: ' + r.error.message; return; }
@@ -139,14 +144,47 @@ async function carregarMeiosLista(){
   r.data.forEach(x => {
     const item = document.createElement('div');
     item.className = 'item';
+    const esq = document.createElement('div');
     const n = document.createElement('div');
     n.textContent = x.nome;
+    const s = document.createElement('small');
+    s.textContent = (x.dia_fechamento && x.dia_vencimento)
+      ? 'Fatura fecha dia ' + x.dia_fechamento + ' · vence dia ' + x.dia_vencimento
+      : 'Sem fatura (pago na hora)';
+    esq.appendChild(n); esq.appendChild(s);
+    const dir = document.createElement('div');
+    dir.className = 'dir';
+    const bc = document.createElement('button');
+    const ic = document.createElement('i');
+    ic.className = 'ti ti-pencil';
+    bc.appendChild(ic);
+    bc.setAttribute('aria-label', 'Configurar fatura');
+    bc.onclick = () => configurarCartao(x);
     const b = document.createElement('button');
     b.textContent = '🗑';
     b.onclick = () => apagarMeio(x.nome);
-    item.appendChild(n); item.appendChild(b);
+    dir.appendChild(bc); dir.appendChild(b);
+    item.appendChild(esq); item.appendChild(dir);
     el.appendChild(item);
   });
+}
+
+async function configurarCartao(x){
+  const f = prompt('Dia em que a fatura FECHA (1 a 31).\nDeixe em branco se não for cartão de crédito.', x.dia_fechamento || '');
+  if(f === null) return;
+  let fech = null, venc = null;
+  if(f.trim() !== ''){
+    fech = parseInt(f, 10);
+    if(!(fech >= 1 && fech <= 31)) return toast('Dia de fechamento inválido', true);
+    const v = prompt('Dia do VENCIMENTO da fatura (1 a 31).', x.dia_vencimento || '');
+    if(v === null) return;
+    venc = parseInt(v, 10);
+    if(!(venc >= 1 && venc <= 31)) return toast('Dia de vencimento inválido', true);
+  }
+  const {error} = await db.from('meios_pagamento').update({dia_fechamento: fech, dia_vencimento: venc}).eq('nome', x.nome);
+  if(error) return toast('Erro: ' + error.message, true);
+  toast('Salvo ✓');
+  carregarMeiosLista();
 }
 
 async function apagarMeio(nome){
