@@ -46,8 +46,8 @@ select{width:100%;padding:12px;font-size:16px;border:1px solid var(--bd);border-
 .hn{font-size:12px;color:var(--mut);text-transform:capitalize}
 .hcol.sel .hn{color:var(--pri);font-weight:700}
 .abas{display:flex;gap:8px;margin-bottom:8px}
-.aba{flex:1;padding:10px;border-radius:999px;border:1px solid var(--bd);background:var(--card);color:var(--txt);font-size:15px}
-.aba.on{background:var(--pri);border-color:var(--pri);color:#fff}
+.aba,.vbtn{flex:1;padding:10px;border-radius:999px;border:1px solid var(--bd);background:var(--card);color:var(--txt);font-size:15px}
+.aba.on,.vbtn.on{background:var(--pri);border-color:var(--pri);color:#fff}
 .row{margin:12px 0}
 .row.clk{cursor:pointer}
 .row .l{display:flex;justify-content:space-between;font-size:14px;gap:8px}
@@ -75,6 +75,12 @@ select{width:100%;padding:12px;font-size:16px;border:1px solid var(--bd);border-
     <div id="mesLabel"></div>
     <button id="prox" class="link">›</button>
   </div>
+
+  <div class="abas" style="margin-bottom:6px">
+    <button class="vbtn" data-v="compra">Data da compra</button>
+    <button class="vbtn" data-v="fatura">Fatura</button>
+  </div>
+  <div class="mut" id="visaoTxt" style="margin-bottom:12px"></div>
 
   <div class="filtros">
     <select id="fCat"></select>
@@ -173,15 +179,29 @@ function nomeMes(s, formato){
 }
 
 let mes = hoje().slice(0,8) + '01';
+let janela = [];
 let dados = [];
-let hist = [];
-let histPronto = false;
-let tokHist = 0;
+let cartoes = {};
+let visao = localStorage.getItem('visao') === 'fatura' ? 'fatura' : 'compra';
+let tokCarga = 0;
 let limite = 0;
 let meiosBase = [];
 let uid = null;
 let aba = 'cat';
 let diaSel = '';
+
+/* Mês da fatura (mês do vencimento) de uma compra no cartão; sem cartão configurado, vale o mês da compra */
+function mesFatura(data, meio){
+  const c = cartoes[meio];
+  if(!c || !c.fech || !c.venc) return data.slice(0, 7);
+  const y = +data.slice(0, 4), m = +data.slice(5, 7), d = +data.slice(8, 10);
+  const corte = Math.min(c.fech, new Date(y, m, 0).getDate());
+  let cy = y, cm = m;
+  if(d > corte){ cm++; if(cm > 12){ cm = 1; cy++; } }
+  if(c.venc <= c.fech){ cm++; if(cm > 12){ cm = 1; cy++; } }
+  return cy + '-' + String(cm).padStart(2, '0');
+}
+const chaveMes = x => visao === 'fatura' ? mesFatura(x.data, x.meio_pagamento) : x.data.slice(0, 7);
 
 function opcoes(sel, base, extras, rotulo){
   const atual = sel.value;
@@ -239,11 +259,11 @@ function barras(el, pares, total, opt){
   });
 }
 
-/* ---------- Quanto posso gastar por dia ---------- */
+/* ---------- Quanto posso gastar por dia (só no modo Data da compra) ---------- */
 function renderPorDia(totMes){
   const card = $('pdCard');
   const hj = hoje();
-  if(mes.slice(0, 7) !== hj.slice(0, 7)){ card.hidden = true; return; }
+  if(visao !== 'compra' || mes.slice(0, 7) !== hj.slice(0, 7)){ card.hidden = true; return; }
   card.hidden = false;
   const val = $('pdVal'), sub = $('pdSub'), hojeEl = $('pdHoje');
   hojeEl.className = 'pdh';
@@ -291,44 +311,13 @@ function renderPorDia(totMes){
 }
 
 /* ---------- Últimos 6 meses e comparação ---------- */
-async function buscarPeriodo(ini, fim){
-  let tudo = [], de = 0;
-  while(true){
-    const r = await db.from('gastos')
-      .select('data,valor,categoria,meio_pagamento')
-      .gte('data', ini).lt('data', fim)
-      .order('data').order('id')
-      .range(de, de + 999);
-    if(r.error) return null;
-    tudo = tudo.concat(r.data);
-    if(r.data.length < 1000) break;
-    de += 1000;
-  }
-  return tudo;
-}
-
-async function carregarHist(){
-  const t = ++tokHist;
-  const r = await buscarPeriodo(addMeses(mes, -5), addMeses(mes, 1));
-  if(t !== tokHist) return;
-  hist = r || [];
-  histPronto = true;
-  renderHist();
-}
-
 function renderHist(){
   const box = $('hist'), cmp = $('cmp');
-  if(!histPronto){
-    box.textContent = 'Carregando...';
-    cmp.textContent = '';
-    cmp.className = 'cmp';
-    return;
-  }
   const fc = $('fCat').value, fm = $('fMeio').value;
-  const rows = hist.filter(x => (!fc || x.categoria === fc) && (!fm || x.meio_pagamento === fm));
+  const rows = janela.filter(x => (!fc || x.categoria === fc) && (!fm || x.meio_pagamento === fm));
   const meses = [];
   for(let k = -5; k <= 0; k++) meses.push(addMeses(mes, k));
-  const doMes = m => rows.filter(x => x.data.slice(0, 7) === m.slice(0, 7));
+  const doMes = m => rows.filter(x => x.mm === m.slice(0, 7));
   const tot = meses.map(m => soma(doMes(m)));
 
   box.innerHTML = '';
@@ -355,7 +344,7 @@ function renderHist(){
   const ehMesAtual = mes.slice(0, 7) === hj.slice(0, 7);
   const mesPrev = meses[4];
   let cur, prev, ate = 0;
-  if(ehMesAtual){
+  if(visao === 'compra' && ehMesAtual){
     ate = +hj.slice(8, 10);
     const diasPrev = new Date(+mesPrev.slice(0, 4), +mesPrev.slice(5, 7), 0).getDate();
     const corte = Math.min(ate, diasPrev);
@@ -397,7 +386,15 @@ function render(){
   const tot = soma(f), totMes = soma(dados);
   const filtrado = $('fCat').value || $('fMeio').value || diaSel;
 
-  $('totLabel').textContent = filtrado ? 'Total (filtrado)' : 'Total do mês';
+  document.querySelectorAll('.vbtn').forEach(b => b.classList.toggle('on', b.dataset.v === visao));
+  const temFatura = Object.values(cartoes).some(c => c.fech && c.venc);
+  $('visaoTxt').textContent = visao === 'compra'
+    ? 'Gastos agrupados pela data da compra.'
+    : (temFatura
+        ? 'Cartões de crédito agrupados pelo mês de vencimento da fatura. Pix e dinheiro, pela data.'
+        : 'Nenhum cartão configurado ainda: informe o fechamento e o vencimento em Ferramentas.');
+
+  $('totLabel').textContent = filtrado ? 'Total (filtrado)' : (visao === 'fatura' ? 'Total a pagar no mês' : 'Total do mês');
   $('total').textContent = brl(tot);
   const rec = f.reduce((s, x) => s + Number(x.recompensa || 0), 0);
   $('rec').textContent = rec > 0 ? 'Recompensas: ' + brl(rec) : '';
@@ -463,21 +460,39 @@ function render(){
   });
 }
 
-async function carregar(){
-  histPronto = false;
-  const fim = addMeses(mes, 1);
-  $('mesLabel').textContent = new Date(+mes.slice(0,4), +mes.slice(5,7) - 1, 1)
+async function buscarJanela(ini, fim){
+  let tudo = [], de = 0;
+  while(true){
+    const r = await db.from('gastos')
+      .select('id,data,valor,categoria,meio_pagamento,descricao,parcelas,parcela_numero,recompensa')
+      .gte('data', ini).lt('data', fim)
+      .order('data', {ascending:false}).order('criado_em', {ascending:false}).order('id')
+      .range(de, de + 999);
+    if(r.error){ toast('Erro: ' + r.error.message, true); return null; }
+    tudo = tudo.concat(r.data);
+    if(r.data.length < 1000) break;
+    de += 1000;
+  }
+  return tudo;
+}
+
+function recalcular(){
+  const rotulo = new Date(+mes.slice(0,4), +mes.slice(5,7) - 1, 1)
     .toLocaleDateString('pt-BR', {month:'long', year:'numeric'});
-  const r = await db.from('gastos')
-    .select('id,data,valor,categoria,meio_pagamento,descricao,parcelas,parcela_numero,recompensa')
-    .gte('data', mes).lt('data', fim)
-    .order('data', {ascending:false}).order('criado_em', {ascending:false});
-  if(r.error){ toast('Erro: ' + r.error.message, true); return; }
-  dados = r.data;
+  $('mesLabel').textContent = (visao === 'fatura' ? 'Fatura de ' : '') + rotulo;
+  janela.forEach(x => { x.mm = chaveMes(x); });
+  dados = janela.filter(x => x.mm === mes.slice(0, 7));
   opcoes($('fCat'), CATEGORIAS, dados.map(x => x.categoria), 'Todas as categorias');
   opcoes($('fMeio'), meiosBase, dados.map(x => x.meio_pagamento), 'Todos os meios');
   render();
-  carregarHist();
+}
+
+async function carregar(){
+  const t = ++tokCarga;
+  const r = await buscarJanela(addMeses(mes, -7), addMeses(mes, 1));
+  if(t !== tokCarga || !r) return;
+  janela = r;
+  recalcular();
 }
 
 async function init(){
@@ -486,8 +501,12 @@ async function init(){
   uid = data.session.user.id;
   const o = await db.from('orcamento').select('limite_mensal').eq('user_id', uid).maybeSingle();
   if(!o.error && o.data) limite = Number(o.data.limite_mensal);
-  const m = await db.from('meios_pagamento').select('nome').order('nome');
-  if(!m.error) meiosBase = m.data.map(x => x.nome);
+  let m = await db.from('meios_pagamento').select('nome,dia_fechamento,dia_vencimento').order('nome');
+  if(m.error) m = await db.from('meios_pagamento').select('nome').order('nome');
+  if(!m.error){
+    meiosBase = m.data.map(x => x.nome);
+    m.data.forEach(x => { cartoes[x.nome] = {fech: x.dia_fechamento || 0, venc: x.dia_vencimento || 0}; });
+  }
   carregar();
 }
 
@@ -497,6 +516,14 @@ $('fCat').onchange = render;
 $('fMeio').onchange = render;
 $('btnLimparDia').onclick = () => { diaSel = ''; render(); };
 document.querySelectorAll('.aba').forEach(b => { b.onclick = () => { aba = b.dataset.aba; render(); }; });
+document.querySelectorAll('.vbtn').forEach(b => {
+  b.onclick = () => {
+    visao = b.dataset.v;
+    localStorage.setItem('visao', visao);
+    diaSel = '';
+    recalcular();
+  };
+});
 $('btnLimite').onclick = async () => {
   const s = prompt('Limite mensal (R$)', limite || '');
   if(s === null) return;
