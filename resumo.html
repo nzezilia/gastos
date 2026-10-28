@@ -54,6 +54,14 @@ select{width:100%;padding:12px;font-size:16px;border:1px solid var(--bd);border-
 .row.sel .l{font-weight:700;color:var(--pri)}
 .row .b{height:8px;background:var(--bd);border-radius:999px;margin-top:4px;overflow:hidden}
 .row .b i{display:block;height:100%;background:var(--pri)}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal .dow{text-align:center;font-size:11px;font-weight:600;color:var(--mut);padding:2px 0}
+.cal .dia{height:54px;border:0;border-radius:10px;background:var(--bg);color:var(--txt);padding:5px 2px;display:flex;flex-direction:column;justify-content:space-between;align-items:center;font-size:12px;cursor:pointer}
+.cal .dia.vazio{visibility:hidden;cursor:default}
+.cal .dia .n{font-weight:600}
+.cal .dia .v{font-size:10px;font-weight:700;white-space:nowrap;min-height:12px}
+.cal .dia.hoje{box-shadow:inset 0 0 0 2px var(--pri)}
+.cal .dia.sel{background:var(--pri)!important;color:#fff}
 .item{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--bd)}
 .item small{color:var(--mut);display:block}
 .item .v{font-weight:600;white-space:nowrap}
@@ -177,6 +185,14 @@ function rotuloDia(s){
 function nomeMes(s, formato){
   return new Date(+s.slice(0,4), +s.slice(5,7) - 1, 1).toLocaleDateString('pt-BR', {month: formato}).replace('.', '');
 }
+function paraData(s){ const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); }
+function fmtISO(dt){
+  return dt.getFullYear() + '-' + String(dt.getMonth()+1).padStart(2,'0') + '-' + String(dt.getDate()).padStart(2,'0');
+}
+function compacto(v){
+  if(v >= 1000) return (v / 1000).toFixed(1).replace('.', ',') + 'k';
+  return String(Math.round(v));
+}
 
 let mes = hoje().slice(0,8) + '01';
 let janela = [];
@@ -257,6 +273,120 @@ function barras(el, pares, total, opt){
     row.appendChild(l); row.appendChild(barra);
     el.appendChild(row);
   });
+}
+
+function itemLanc(g){
+  const [y, m, d] = g.data.split('-');
+  const item = document.createElement('div');
+  item.className = 'item';
+  item.style.cursor = 'pointer';
+  item.onclick = () => abrirEdicao(g.id, carregar);
+  const esq = document.createElement('div');
+  const l1 = document.createElement('div');
+  l1.textContent = g.categoria + ' · ' + g.meio_pagamento;
+  const l2 = document.createElement('small');
+  let t = d + '/' + m;
+  if(g.parcelas > 1) t += ' · ' + g.parcela_numero + '/' + g.parcelas;
+  if(g.descricao) t += ' · ' + g.descricao;
+  l2.textContent = t;
+  esq.appendChild(l1); esq.appendChild(l2);
+  const v = document.createElement('div');
+  v.className = 'v';
+  v.textContent = brl(g.valor);
+  item.appendChild(esq); item.appendChild(v);
+  return item;
+}
+
+/* ---------- Calendário ---------- */
+function renderCalendario(el){
+  el.innerHTML = '';
+  const base = filtrar(false);
+  const porDia = {};
+  base.forEach(x => { porDia[x.data] = (porDia[x.data] || 0) + Number(x.valor); });
+
+  let inicio, fimD;
+  if(visao === 'compra'){
+    inicio = paraData(mes);
+    fimD = new Date(+mes.slice(0, 4), +mes.slice(5, 7), 0);
+  } else {
+    const datas = dados.map(x => x.data).sort();
+    if(!datas.length){ el.textContent = 'Sem gastos nesta fatura.'; return; }
+    inicio = paraData(datas[0]);
+    fimD = paraData(datas[datas.length - 1]);
+  }
+  const comeco = new Date(inicio);
+  comeco.setDate(comeco.getDate() - ((comeco.getDay() + 6) % 7));
+  const final = new Date(fimD);
+  final.setDate(final.getDate() + (6 - ((final.getDay() + 6) % 7)));
+
+  const grid = document.createElement('div');
+  grid.className = 'cal';
+  ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'].forEach(n => {
+    const h = document.createElement('div');
+    h.className = 'dow';
+    h.textContent = n;
+    grid.appendChild(h);
+  });
+
+  const max = Math.max(...Object.values(porDia), 1);
+  const hj = hoje();
+  const isoInicio = fmtISO(inicio);
+  for(let dt = new Date(comeco); dt <= final; dt.setDate(dt.getDate() + 1)){
+    const iso = fmtISO(dt);
+    const b = document.createElement('button');
+    b.type = 'button';
+    if(dt < inicio || dt > fimD){
+      b.className = 'dia vazio';
+      b.disabled = true;
+      grid.appendChild(b);
+      continue;
+    }
+    b.className = 'dia';
+    const n = document.createElement('span');
+    n.className = 'n';
+    const dia = dt.getDate();
+    n.textContent = (visao === 'fatura' && (dia === 1 || iso === isoInicio)) ? dia + '/' + (dt.getMonth() + 1) : String(dia);
+    const v = document.createElement('span');
+    v.className = 'v';
+    const tot = porDia[iso] || 0;
+    v.textContent = tot > 0 ? compacto(tot) : '';
+    b.appendChild(n); b.appendChild(v);
+    if(tot > 0){
+      b.style.background = 'color-mix(in srgb, var(--pri) ' + Math.round(10 + (tot / max) * 45) + '%, transparent)';
+    }
+    if(iso === hj) b.classList.add('hoje');
+    if(iso === diaSel) b.classList.add('sel');
+    b.onclick = () => { diaSel = (diaSel === iso ? '' : iso); render(); };
+    grid.appendChild(b);
+  }
+  el.appendChild(grid);
+
+  const det = document.createElement('div');
+  det.style.marginTop = '12px';
+  if(diaSel){
+    const itens = base.filter(x => x.data === diaSel);
+    const cab = document.createElement('div');
+    cab.style.cssText = 'display:flex;justify-content:space-between;font-weight:600;margin-bottom:4px';
+    const a = document.createElement('span');
+    a.textContent = rotuloDia(diaSel);
+    const t = document.createElement('span');
+    t.textContent = brl(soma(itens));
+    cab.appendChild(a); cab.appendChild(t);
+    det.appendChild(cab);
+    if(!itens.length){
+      const vz = document.createElement('div');
+      vz.className = 'mut';
+      vz.textContent = 'Nenhum gasto neste dia.';
+      det.appendChild(vz);
+    }
+    itens.forEach(g => det.appendChild(itemLanc(g)));
+  } else {
+    const dica = document.createElement('div');
+    dica.className = 'mut';
+    dica.textContent = 'Toque em um dia para ver os gastos dele.';
+    det.appendChild(dica);
+  }
+  el.appendChild(det);
 }
 
 /* ---------- Quanto posso gastar por dia (só no modo Data da compra) ---------- */
@@ -424,40 +554,12 @@ function render(){
   const gr = $('grafico');
   if(aba === 'cat') barras(gr, agrupar(f, 'categoria'), tot);
   else if(aba === 'meio') barras(gr, agrupar(f, 'meio_pagamento'), tot);
-  else {
-    const base = filtrar(false);
-    const pares = agrupar(base, 'data').sort((p, q) => q[0].localeCompare(p[0]));
-    barras(gr, pares, soma(base), {
-      rotulo: rotuloDia,
-      sel: diaSel,
-      onClick: k => { diaSel = (diaSel === k ? '' : k); render(); }
-    });
-  }
+  else renderCalendario(gr);
 
   const lista = $('lista');
   lista.innerHTML = '';
   if(!f.length){ lista.textContent = 'Nenhum lançamento.'; return; }
-  f.slice(0, 100).forEach(g => {
-    const [y, m, d] = g.data.split('-');
-    const item = document.createElement('div');
-    item.className = 'item';
-    item.style.cursor = 'pointer';
-    item.onclick = () => abrirEdicao(g.id, carregar);
-    const esq = document.createElement('div');
-    const l1 = document.createElement('div');
-    l1.textContent = g.categoria + ' · ' + g.meio_pagamento;
-    const l2 = document.createElement('small');
-    let t = d + '/' + m;
-    if(g.parcelas > 1) t += ' · ' + g.parcela_numero + '/' + g.parcelas;
-    if(g.descricao) t += ' · ' + g.descricao;
-    l2.textContent = t;
-    esq.appendChild(l1); esq.appendChild(l2);
-    const v = document.createElement('div');
-    v.className = 'v';
-    v.textContent = brl(g.valor);
-    item.appendChild(esq); item.appendChild(v);
-    lista.appendChild(item);
-  });
+  f.slice(0, 100).forEach(g => lista.appendChild(itemLanc(g)));
 }
 
 async function buscarJanela(ini, fim){
