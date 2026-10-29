@@ -60,4 +60,10 @@
   }
   decorar();
   new MutationObserver(decorar).observe(document.body, {childList: true, subtree: true});
+
+  if (pag === 'resumo.html') {
+    var sc = document.createElement('script');
+    sc.src = 'dicas.js';
+    document.body.appendChild(sc);
+  }
 })();
