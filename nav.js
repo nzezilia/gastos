@@ -29,6 +29,16 @@
   if (mq.addEventListener) mq.addEventListener('change', aplicarCor);
   aplicarCor();
 
+  var stl = document.createElement('style');
+  stl.textContent =
+    '#fabOv{position:fixed;top:0;right:0;bottom:0;left:0;z-index:90;background:rgba(10,12,22,.45);display:flex;align-items:flex-end;justify-content:center}' +
+    '#fabSh{background:var(--card);width:100%;max-width:480px;border-radius:24px 24px 0 0;padding:14px 16px calc(24px + env(safe-area-inset-bottom));border:1px solid var(--bd)}' +
+    '#fabSh .fopt{display:flex;align-items:center;gap:14px;padding:12px 4px;color:var(--txt);text-decoration:none}' +
+    '#fabSh .fi{width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;color:#fff;flex:none}' +
+    '#fabSh .ft{font-size:16px;font-weight:600}' +
+    '#fabSh .fs{font-size:13px;color:var(--mut)}';
+  document.head.appendChild(stl);
+
   var ICONES = {
     'Mercado': 'shopping-cart', 'Alimentação': 'tools-kitchen-2', 'Transporte': 'bus',
     'Moradia': 'home', 'Saúde': 'heartbeat', 'Lazer': 'device-gamepad-2',
@@ -46,11 +56,71 @@
   ];
   if (!itens.some(function (x) { return x[0] === ativa; })) ativa = 'index.html';
 
+  function garantirEntradas(cb) {
+    if (window.EntradasLoaded) { if (cb) cb(); return; }
+    var s = document.createElement('script');
+    s.src = 'entradas.js';
+    s.onload = function () { if (cb) cb(); };
+    document.body.appendChild(s);
+  }
+
+  function opcao(icone, cor, titulo, sub, acao) {
+    var a = document.createElement('a');
+    a.href = '#';
+    a.className = 'fopt';
+    var fi = document.createElement('span');
+    fi.className = 'fi';
+    fi.style.background = cor;
+    var ic = document.createElement('i');
+    ic.className = 'ti ti-' + icone;
+    fi.appendChild(ic);
+    var tx = document.createElement('div');
+    var t = document.createElement('div');
+    t.className = 'ft';
+    t.textContent = titulo;
+    var s = document.createElement('div');
+    s.className = 'fs';
+    s.textContent = sub;
+    tx.appendChild(t);
+    tx.appendChild(s);
+    a.appendChild(fi);
+    a.appendChild(tx);
+    a.onclick = function (e) {
+      e.preventDefault();
+      var ov = document.getElementById('fabOv');
+      if (ov) ov.remove();
+      acao();
+    };
+    return a;
+  }
+
+  function abrirMenuFab() {
+    if (document.getElementById('fabOv')) return;
+    var ov = document.createElement('div');
+    ov.id = 'fabOv';
+    var sh = document.createElement('div');
+    sh.id = 'fabSh';
+    ov.appendChild(sh);
+    sh.appendChild(opcao('arrow-up-right', '#dc2626', 'Novo gasto', 'Registrar uma saída', function () {
+      if (pag !== 'index.html') { location.href = 'index.html'; return; }
+      var v = document.getElementById('valor');
+      if (v) v.focus();
+    }));
+    sh.appendChild(opcao('arrow-down-left', '#16a34a', 'Nova entrada', 'Salário, renda extra, reembolso...', function () {
+      garantirEntradas(function () { window.abrirNovaEntrada(); });
+    }));
+    sh.appendChild(opcao('file-import', 'var(--pri)', 'Importar fatura', 'Ler o PDF do Inter ou do Itaú', function () {
+      location.href = 'importar.html';
+    }));
+    ov.addEventListener('click', function (e) { if (e.target === ov) ov.remove(); });
+    document.body.appendChild(ov);
+  }
+
   var nav = document.createElement('nav');
   nav.id = 'nav';
   itens.forEach(function (x) {
     var a = document.createElement('a');
-    a.href = x[0];
+    a.href = x[3] === 'fab' ? '#' : x[0];
     var cls = [];
     if (x[3]) cls.push(x[3]);
     if (x[0] === ativa) cls.push('on');
@@ -59,7 +129,8 @@
     i.className = 'ti ti-' + x[1];
     a.appendChild(i);
     if (x[3] === 'fab') {
-      a.setAttribute('aria-label', 'Lançar gasto');
+      a.setAttribute('aria-label', 'Novo lançamento');
+      a.onclick = function (e) { e.preventDefault(); abrirMenuFab(); };
     } else {
       var s = document.createElement('span');
       s.textContent = x[2];
@@ -147,7 +218,10 @@
     desenhar();
   }
 
-  if (pag === 'ferramentas.html') montarSeletorCor();
+  if (pag === 'ferramentas.html') {
+    montarSeletorCor();
+    garantirEntradas();
+  }
 
   if (pag === 'resumo.html') {
     var sc = document.createElement('script');
