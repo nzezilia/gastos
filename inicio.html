@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1e3a8a">
+<title>Início</title>
+<link rel="stylesheet" href="estilo.css">
+<link rel="stylesheet" href="componentes.css">
+<script src="nav.js" defer></script>
+<script src="editar.js" defer></script>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Gastos">
+</head>
+<body>
+<div class="wrap">
+  <div class="hdr">
+    <div class="mesnav">
+      <button id="ant" aria-label="Mês anterior"><i class="ti ti-chevron-left"></i></button>
+      <span id="mesLabel"></span>
+      <button id="prox" aria-label="Próximo mês"><i class="ti ti-chevron-right"></i></button>
+    </div>
+    <button id="btnSair" class="ib" aria-label="Sair"><i class="ti ti-logout"></i></button>
+  </div>
+
+  <div class="hero">
+    <div class="hl">Gasto do mês</div>
+    <div class="hv" id="hTotal">R$ 0,00</div>
+    <div class="hrow">
+      <div class="hc" id="hCmp"></div>
+      <svg id="hSpark" width="120" height="40" viewBox="0 0 120 40" role="img" aria-label="Gastos dos últimos seis meses"></svg>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat" id="stDia"><small id="stDiaL">Posso gastar por dia</small><b id="stDiaV">—</b></div>
+    <div class="stat" id="stOrc"><small>Orçamento usado</small><b id="stOrcV">—</b><div class="mini"><i id="stOrcBar"></i></div></div>
+  </div>
+
+  <h2>Categorias</h2>
+  <div class="card" id="cats"></div>
+
+  <h2>Últimas transações <a class="vt" href="transacoes.html">Ver todas</a></h2>
+  <div class="card" id="ult"></div>
+
+  <a class="linkcard" href="resumo.html">Ver análises, calendário e dicas →</a>
+</div>
+<div id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.1/dist/umd/supabase.js"></script>
+<script src="util.js"></script>
+<script>
+const SUPABASE_URL = 'https://rgxtcesazjjongzzundn.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_dcaO4K5PeljI7vogQHQaxg_3hH_pIGT';
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let mes = hoje().slice(0, 8) + '01';
+let janela = [];
+let dados = [];
+let limite = 0;
+let uid = null;
+let tok = 0;
+
+async function buscarPeriodo(ini, fim){
+  let tudo = [], de = 0;
+  while(true){
+    const r = await db.from('gastos')
+      .select('id,data,valor,categoria,meio_pagamento,descricao,parcelas,parcela_numero')
+      .gte('data', ini).lt('data', fim)
+      .order('data', {ascending: false}).order('criado_em', {ascending: false}).order('id')
+      .range(de, de + 999);
+    if(r.error){ toast('Erro: ' + r.error.message, true); return null; }
+    tudo = tudo.concat(r.data);
+    if(r.data.length < 1000) break;
+    de += 1000;
+  }
+  return tudo;
+}
+
+function desenharSpark(vals){
+  const svg = $('hSpark');
+  svg.innerHTML = '';
+  const max = Math.max(...vals, 1), W = 120, H = 40, P = 5;
+  const pts = vals.map((v, i) => [P + i * (W - 2 * P) / (vals.length - 1), H - P - (v / max) * (H - 2 * P)]);
+  const NS = 'http://www.w3.org/2000/svg';
+  const pl = document.createElementNS(NS, 'polyline');
+  pl.setAttribute('points', pts.map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' '));
+  pl.setAttribute('fill', 'none');
+  pl.setAttribute('stroke', 'rgba(255,255,255,.85)');
+  pl.setAttribute('stroke-width', '2');
+  pl.setAttribute('stroke-linecap', 'round');
+  pl.setAttribute('stroke-linejoin', 'round');
+  svg.appendChild(pl);
+  const u = pts[pts.length - 1];
+  const c = document.createElementNS(NS, 'circle');
+  c.setAttribute('cx', u[0]);
+  c.setAttribute('cy', u[1]);
+  c.setAttribute('r', '3.5');
+  c.setAttribute('fill', '#fff');
+  svg.appendChild(c);
+}
+
+function render(){
+  const mm = mes.slice(0, 7), hj = hoje();
+  const ehAtual = mm === hj.slice(0, 7);
+  const futuro = mm > hj.slice(0, 7);
+  dados = janela.filter(x => x.data.slice(0, 7) === mm);
+  const totMes = soma(dados);
+
+  $('hTotal').textContent = brl(totMes);
+
+  const meses = [];
+  for(let k = -5; k <= 0; k++) meses.push(addMeses(mes, k).slice(0, 7));
+  const totais = meses.map(m => soma(janela.filter(x => x.data.slice(0, 7) === m)));
+  desenharSpark(totais);
+
+  const mmPrev = meses[4];
+  let cur = totais[5], prev = totais[4], ate = 0;
+  if(ehAtual){
+    ate = +hj.slice(8, 10);
+    const diasPrev = new Date(+mmPrev.slice(0, 4), +mmPrev.slice(5, 7), 0).getDate();
+    const corte = Math.min(ate, diasPrev);
+    cur = soma(dados.filter(x => x.data <= hj));
+    prev = soma(janela.filter(x => x.data.slice(0, 7) === mmPrev && +x.data.slice(8, 10) <= corte));
+  }
+  const cmp = $('hCmp');
+  cmp.innerHTML = '';
+  const nomePrev = nomeMes(mmPrev + '-01', 'long');
+  if(prev === 0){
+    cmp.textContent = 'Sem gastos em ' + nomePrev + ' para comparar';
+  } else {
+    const dif = cur - prev;
+    const pct = Math.abs(dif) / prev * 100;
+    if(pct < 1){
+      cmp.textContent = 'Praticamente igual a ' + nomePrev + (ate ? ' (até o dia ' + ate + ')' : '');
+    } else {
+      const ic = document.createElement('i');
+      ic.className = 'ti ti-arrow-' + (dif > 0 ? 'up' : 'down') + '-right';
+      cmp.appendChild(ic);
+      cmp.appendChild(document.createTextNode(' ' + Math.round(pct) + '% ' + (dif > 0 ? 'a mais' : 'a menos') +
+        ' que em ' + nomePrev + (ate ? ' (até o dia ' + ate + ')' : '')));
+    }
+  }
+
+  const lDia = $('stDiaL'), vDia = $('stDiaV'), vOrc = $('stOrcV'), bOrc = $('stOrcBar');
+  vDia.className = '';
+  if(!(limite > 0)){
+    lDia.textContent = 'Orçamento';
+    vDia.textContent = 'Definir limite';
+    vOrc.textContent = '—';
+    bOrc.style.width = '0';
+  } else {
+    const p = totMes / limite * 100;
+    vOrc.textContent = Math.round(p) + '%';
+    bOrc.style.width = Math.min(p, 100) + '%';
+    bOrc.style.background = p > 100 ? '#dc2626' : p >= 80 ? '#d97706' : '#16a34a';
+    if(ehAtual){
+      lDia.textContent = 'Posso gastar por dia';
+      const dia = +hj.slice(8, 10);
+      const diasMes = new Date(+hj.slice(0, 4), +hj.slice(5, 7), 0).getDate();
+      const R = diasMes - dia + 1;
+      const H = soma(dados.filter(x => x.data === hj));
+      const A = limite - (totMes - H);
+      if(A <= 0){ vDia.textContent = 'Esgotado'; vDia.className = 'neg'; }
+      else vDia.textContent = brl(A / R);
+    } else if(futuro){
+      lDia.textContent = 'Posso gastar por dia';
+      vDia.textContent = '—';
+    } else {
+      lDia.textContent = 'Resultado do mês';
+      if(totMes <= limite) vDia.textContent = 'Sobrou ' + brl(limite - totMes);
+      else { vDia.textContent = 'Passou ' + brl(totMes - limite); vDia.className = 'neg'; }
+    }
+  }
+
+  const porCat = {};
+  dados.forEach(x => { porCat[x.categoria] = (porCat[x.categoria] || 0) + Number(x.valor); });
+  const arr = Object.entries(porCat).sort((a, b) => b[1] - a[1]);
+  const box = $('cats');
+  box.innerHTML = '';
+  if(!arr.length){
+    box.textContent = 'Sem gastos neste mês.';
+  } else {
+    arr.slice(0, 5).forEach(([c, v]) => {
+      const pct = totMes ? v / totMes * 100 : 0;
+      const row = document.createElement('div');
+      row.className = 'catrow';
+      const ic = document.createElement('div');
+      ic.className = 'ic';
+      ic.style.background = 'color-mix(in srgb, ' + corCat(c) + ' 16%, transparent)';
+      ic.style.color = corCat(c);
+      const i = document.createElement('i');
+      i.className = 'ti ti-' + iconeCat(c);
+      ic.appendChild(i);
+      const mid = document.createElement('div');
+      mid.className = 'mid';
+      const l1 = document.createElement('div');
+      l1.className = 'l1';
+      const n = document.createElement('span');
+      n.textContent = c;
+      const p = document.createElement('span');
+      p.className = 'pc';
+      p.textContent = Math.round(pct) + '%';
+      l1.appendChild(n); l1.appendChild(p);
+      const l2 = document.createElement('div');
+      l2.className = 'l2';
+      l2.textContent = brl(v);
+      const bar = document.createElement('div');
+      bar.className = 'bar';
+      const bi = document.createElement('i');
+      bi.style.width = Math.max(pct, 2) + '%';
+      bi.style.background = corCat(c);
+      bar.appendChild(bi);
+      mid.appendChild(l1); mid.appendChild(l2); mid.appendChild(bar);
+      row.appendChild(ic); row.appendChild(mid);
+      box.appendChild(row);
+    });
+    if(arr.length > 5){
+      const resto = arr.slice(5);
+      const nota = document.createElement('div');
+      nota.className = 'mut';
+      nota.style.marginTop = '6px';
+      nota.textContent = '+ outras ' + resto.length + ' categoria' + (resto.length > 1 ? 's' : '') + ' · ' + brl(resto.reduce((s, x) => s + x[1], 0));
+      box.appendChild(nota);
+    }
+  }
+
+  const ult = $('ult');
+  if(!dados.length){
+    ult.textContent = 'Nenhum lançamento neste mês. Toque no + para lançar.';
+  } else {
+    agruparPorData(dados.slice(0, 6), carregar, ult);
+  }
+}
+
+async function carregar(){
+  const t = ++tok;
+  $('mesLabel').textContent = nomeMes(mes, 'long') + ' ' + mes.slice(0, 4);
+  const r = await buscarPeriodo(addMeses(mes, -5), addMeses(mes, 1));
+  if(t !== tok || !r) return;
+  janela = r;
+  render();
+}
+
+async function editarLimite(){
+  const s = prompt('Limite mensal (R$)', limite || '');
+  if(s === null) return;
+  const v = num(s);
+  const {error} = await db.from('orcamento').upsert({user_id: uid, limite_mensal: v});
+  if(error) return toast('Erro: ' + error.message, true);
+  limite = v;
+  render();
+  toast('Limite salvo ✓');
+}
+
+$('ant').onclick = () => { mes = addMeses(mes, -1); carregar(); };
+$('prox').onclick = () => { mes = addMeses(mes, 1); carregar(); };
+$('stDia').onclick = editarLimite;
+$('stOrc').onclick = editarLimite;
+$('btnSair').onclick = async () => { await db.auth.signOut(); location.href = 'index.html'; };
+
+(async () => {
+  const {data} = await db.auth.getSession();
+  if(!data.session){ location.href = 'index.html'; return; }
+  uid = data.session.user.id;
+  const o = await db.from('orcamento').select('limite_mensal').eq('user_id', uid).maybeSingle();
+  if(!o.error && o.data) limite = Number(o.data.limite_mensal);
+  await carregarCartoes();
+  carregar();
+})();
+</script>
+</body>
+</html>
