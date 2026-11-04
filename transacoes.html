@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1e3a8a">
+<title>Transações</title>
+<link rel="stylesheet" href="estilo.css">
+<link rel="stylesheet" href="componentes.css">
+<script src="nav.js" defer></script>
+<script src="editar.js" defer></script>
+</head>
+<body>
+<div class="wrap">
+  <div class="hdr">
+    <div class="mesnav">
+      <button id="ant" aria-label="Mês anterior"><i class="ti ti-chevron-left"></i></button>
+      <span id="mesLabel"></span>
+      <button id="prox" aria-label="Próximo mês"><i class="ti ti-chevron-right"></i></button>
+    </div>
+  </div>
+
+  <div class="busca">
+    <i class="ti ti-search"></i>
+    <input id="q" placeholder="Buscar descrição, categoria ou cartão" autocomplete="off">
+  </div>
+  <div class="chips" id="tipos"></div>
+  <div class="filtros">
+    <select id="fCat"></select>
+    <select id="fMeio"></select>
+  </div>
+  <div class="mut" id="resumoLista" style="margin:0 4px 8px"></div>
+  <div class="card" id="lista"></div>
+</div>
+<div id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.1/dist/umd/supabase.js"></script>
+<script src="util.js"></script>
+<script>
+const SUPABASE_URL = 'https://rgxtcesazjjongzzundn.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_dcaO4K5PeljI7vogQHQaxg_3hH_pIGT';
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let mes = hoje().slice(0, 8) + '01';
+let dados = [];
+let nomesMeios = [];
+let tipo = 'todas';
+let tok = 0;
+const TIPOS = [['todas', 'Todas'], ['fixas', 'Fixas'], ['parceladas', 'Parceladas']];
+
+function opcoes(sel, base, extras, rotulo){
+  const atual = sel.value;
+  const lista = [...new Set([...base, ...extras])];
+  sel.innerHTML = '';
+  const o0 = document.createElement('option');
+  o0.value = ''; o0.textContent = rotulo;
+  sel.appendChild(o0);
+  lista.forEach(n => {
+    const o = document.createElement('option');
+    o.value = n; o.textContent = n;
+    sel.appendChild(o);
+  });
+  sel.value = lista.includes(atual) ? atual : '';
+}
+
+function desenharTipos(){
+  const box = $('tipos');
+  box.innerHTML = '';
+  TIPOS.forEach(([id, nome]) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'chip' + (id === tipo ? ' on' : '');
+    b.textContent = nome;
+    b.onclick = () => { tipo = id; desenharTipos(); render(); };
+    box.appendChild(b);
+  });
+}
+
+function render(){
+  const q = sem($('q').value.trim().toLowerCase());
+  const fc = $('fCat').value, fm = $('fMeio').value;
+  const f = dados.filter(x =>
+    (!fc || x.categoria === fc) &&
+    (!fm || x.meio_pagamento === fm) &&
+    (tipo === 'todas' || (tipo === 'fixas' && x.tipo === 'fixo') || (tipo === 'parceladas' && x.parcelas > 1)) &&
+    (!q || sem(((x.descricao || '') + ' ' + x.categoria + ' ' + x.meio_pagamento).toLowerCase()).includes(q)));
+  $('resumoLista').textContent = f.length + ' lançamento' + (f.length === 1 ? '' : 's') + ' · ' + brl(soma(f));
+  const lista = $('lista');
+  if(!f.length){ lista.textContent = 'Nenhum lançamento encontrado.'; return; }
+  agruparPorData(f.slice(0, 300), carregar, lista);
+  if(f.length > 300){
+    const nota = document.createElement('div');
+    nota.className = 'mut';
+    nota.style.paddingTop = '10px';
+    nota.textContent = 'Mostrando os 300 mais recentes. Use a busca para refinar.';
+    lista.appendChild(nota);
+  }
+}
+
+async function carregar(){
+  const t = ++tok;
+  $('mesLabel').textContent = nomeMes(mes, 'long') + ' ' + mes.slice(0, 4);
+  const fim = addMeses(mes, 1);
+  let tudo = [], de = 0;
+  while(true){
+    const r = await db.from('gastos')
+      .select('id,data,valor,categoria,meio_pagamento,descricao,parcelas,parcela_numero,tipo')
+      .gte('data', mes).lt('data', fim)
+      .order('data', {ascending: false}).order('criado_em', {ascending: false}).order('id')
+      .range(de, de + 999);
+    if(r.error){ toast('Erro: ' + r.error.message, true); return; }
+    tudo = tudo.concat(r.data);
+    if(r.data.length < 1000) break;
+    de += 1000;
+  }
+  if(t !== tok) return;
+  dados = tudo;
+  opcoes($('fCat'), CATEGORIAS, dados.map(x => x.categoria), 'Todas as categorias');
+  opcoes($('fMeio'), nomesMeios, dados.map(x => x.meio_pagamento), 'Todos os meios');
+  render();
+}
+
+$('ant').onclick = () => { mes = addMeses(mes, -1); carregar(); };
+$('prox').onclick = () => { mes = addMeses(mes, 1); carregar(); };
+$('q').addEventListener('input', render);
+$('fCat').onchange = render;
+$('fMeio').onchange = render;
+
+(async () => {
+  const {data} = await db.auth.getSession();
+  if(!data.session){ location.href = 'index.html'; return; }
+  nomesMeios = await carregarCartoes();
+  desenharTipos();
+  carregar();
+})();
+</script>
+</body>
+</html>
