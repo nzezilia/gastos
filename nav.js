@@ -38,8 +38,10 @@
   var pag = (location.pathname.split('/').pop() || 'index.html').toLowerCase();
   var ativa = pag === 'importar.html' ? 'ferramentas.html' : pag;
   var itens = [
-    ['resumo.html', 'home', 'Início', ''],
+    ['inicio.html', 'home', 'Início', ''],
+    ['transacoes.html', 'list-details', 'Transações', ''],
     ['index.html', 'plus', 'Lançar', 'fab'],
+    ['resumo.html', 'chart-bar', 'Análises', ''],
     ['ferramentas.html', 'menu-2', 'Mais', '']
   ];
   if (!itens.some(function (x) { return x[0] === ativa; })) ativa = 'index.html';
