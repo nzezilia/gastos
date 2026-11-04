@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="componentes.css">
 <script src="nav.js" defer></script>
 <script src="editar.js" defer></script>
+<script src="entradas.js" defer></script>
 </head>
 <body>
 <div class="wrap">
@@ -42,11 +43,11 @@ const SUPABASE_KEY = 'sb_publishable_dcaO4K5PeljI7vogQHQaxg_3hH_pIGT';
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let mes = hoje().slice(0, 8) + '01';
-let dados = [];
+let todos = [];
 let nomesMeios = [];
 let tipo = 'todas';
 let tok = 0;
-const TIPOS = [['todas', 'Todas'], ['fixas', 'Fixas'], ['parceladas', 'Parceladas']];
+const TIPOS = [['todas', 'Todas'], ['saidas', 'Saídas'], ['entradas', 'Entradas'], ['fixas', 'Fixas'], ['parceladas', 'Parceladas']];
 
 function opcoes(sel, base, extras, rotulo){
   const atual = sel.value;
@@ -79,15 +80,24 @@ function desenharTipos(){
 function render(){
   const q = sem($('q').value.trim().toLowerCase());
   const fc = $('fCat').value, fm = $('fMeio').value;
-  const f = dados.filter(x =>
-    (!fc || x.categoria === fc) &&
-    (!fm || x.meio_pagamento === fm) &&
-    (tipo === 'todas' || (tipo === 'fixas' && x.tipo === 'fixo') || (tipo === 'parceladas' && x.parcelas > 1)) &&
-    (!q || sem(((x.descricao || '') + ' ' + x.categoria + ' ' + x.meio_pagamento).toLowerCase()).includes(q)));
-  $('resumoLista').textContent = f.length + ' lançamento' + (f.length === 1 ? '' : 's') + ' · ' + brl(soma(f));
+  const f = todos.filter(x => {
+    if(tipo === 'saidas' && x._e) return false;
+    if(tipo === 'entradas' && !x._e) return false;
+    if(tipo === 'fixas' && !(x._e ? x.recorrente_id : x.tipo === 'fixo')) return false;
+    if(tipo === 'parceladas' && (x._e || !(x.parcelas > 1))) return false;
+    if(fc && x.categoria !== fc) return false;
+    if(fm && (x._e || x.meio_pagamento !== fm)) return false;
+    if(q && !sem(((x.descricao || '') + ' ' + x.categoria + ' ' + (x.meio_pagamento || '')).toLowerCase()).includes(q)) return false;
+    return true;
+  });
+  const totE = soma(f.filter(x => x._e)), totS = soma(f.filter(x => !x._e));
+  let txt = f.length + ' lançamento' + (f.length === 1 ? '' : 's');
+  if(totE > 0) txt += ' · Entradas ' + brl(totE);
+  txt += ' · Saídas ' + brl(totS);
+  $('resumoLista').textContent = txt;
   const lista = $('lista');
   if(!f.length){ lista.textContent = 'Nenhum lançamento encontrado.'; return; }
-  agruparPorData(f.slice(0, 300), carregar, lista);
+  (window.agruparMisto || agruparPorData)(f.slice(0, 300), carregar, lista);
   if(f.length > 300){
     const nota = document.createElement('div');
     nota.className = 'mut';
@@ -113,10 +123,15 @@ async function carregar(){
     if(r.data.length < 1000) break;
     de += 1000;
   }
+  const re = await db.from('entradas')
+    .select('id,data,valor,categoria,descricao,recorrente_id,criado_em')
+    .gte('data', mes).lt('data', fim)
+    .order('data', {ascending: false}).order('criado_em', {ascending: false});
   if(t !== tok) return;
-  dados = tudo;
-  opcoes($('fCat'), CATEGORIAS, dados.map(x => x.categoria), 'Todas as categorias');
-  opcoes($('fMeio'), nomesMeios, dados.map(x => x.meio_pagamento), 'Todos os meios');
+  const ent = re.error ? [] : re.data.map(e => Object.assign({_e: true}, e));
+  todos = tudo.concat(ent).sort((a, b) => a.data < b.data ? 1 : a.data > b.data ? -1 : 0);
+  opcoes($('fCat'), CATEGORIAS.concat(window.CATEGORIAS_ENTRADA || []), todos.map(x => x.categoria), 'Todas as categorias');
+  opcoes($('fMeio'), nomesMeios, tudo.map(x => x.meio_pagamento), 'Todos os meios');
   render();
 }
 
