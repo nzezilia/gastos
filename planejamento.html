@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1e3a8a">
+<title>Planejamento</title>
+<link rel="stylesheet" href="estilo.css">
+<link rel="stylesheet" href="componentes.css">
+<script src="nav.js" defer></script>
+<style>
+.bar2{height:10px;border-radius:5px;background:var(--bd);margin-top:10px;overflow:hidden}
+.bar2 i{display:block;height:100%;width:0;border-radius:5px;background:#16a34a}
+.meta{background:var(--card);border:1px solid var(--bd);border-radius:20px;padding:16px;margin-bottom:12px;box-shadow:var(--sombra)}
+.meta .mt{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.meta .mn{font-size:17px;font-weight:700}
+.meta .ms{font-size:12px;color:var(--mut);margin-top:2px}
+.meta .mp{font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;background:var(--tint);color:var(--pri);white-space:nowrap}
+.meta .mv{font-size:15px;font-weight:600;margin:12px 0 8px}
+.meta .mv span{color:var(--mut);font-weight:500}
+.meta .bar{height:8px;border-radius:4px;background:var(--bd);overflow:hidden}
+.meta .bar i{display:block;height:100%;border-radius:4px;background:var(--pri)}
+.meta .mf{font-size:13px;color:var(--mut);margin-top:10px}
+.meta .mf.ok{color:#16a34a;font-weight:600}
+.meta .mb{display:flex;gap:8px;margin-top:12px}
+.meta .mb button{flex:1;padding:10px;border-radius:12px;border:1px solid var(--pri);background:none;color:var(--pri);font-size:14px;font-weight:600;cursor:pointer}
+.meta .mb button.p{background:var(--pri);color:#fff}
+#plOv{position:fixed;top:0;right:0;bottom:0;left:0;z-index:100;background:rgba(10,12,22,.5);display:flex;align-items:flex-end;justify-content:center}
+#plSh{background:var(--card);color:var(--txt);width:100%;max-width:480px;max-height:92vh;overflow:auto;border-radius:24px 24px 0 0;padding:20px 18px calc(24px + env(safe-area-inset-bottom));border:1px solid var(--bd)}
+#plSh .cab{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+#plSh .cab strong{font-size:18px}
+#plSh .cab button{background:none;border:0;color:var(--mut);font-size:24px;padding:4px}
+#plSh label{display:block;font-size:13px;color:var(--mut);margin:14px 0 6px}
+#plSh input{border-radius:12px;background:var(--bg)}
+#plSh .btn{width:100%;padding:16px;margin-top:14px;border:0;border-radius:14px;background:var(--pri);color:#fff;font-size:17px;font-weight:600}
+#plSh .btn.sec{background:none;border:1px solid var(--err);color:var(--err)}
+#plSh .btn:disabled{opacity:.6}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hdr">
+    <div class="mesnav">
+      <button id="ant" aria-label="Mês anterior"><i class="ti ti-chevron-left"></i></button>
+      <span id="mesLabel"></span>
+      <button id="prox" aria-label="Próximo mês"><i class="ti ti-chevron-right"></i></button>
+    </div>
+  </div>
+
+  <div class="card" id="geral" style="cursor:pointer">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div class="mut">Orçamento do mês</div>
+      <div class="mut" id="gPct"></div>
+    </div>
+    <div class="total" id="gVal" style="font-size:24px;margin-top:4px">—</div>
+    <div class="bar2"><i id="gBar"></i></div>
+    <div class="mut" id="gTxt" style="margin-top:6px"></div>
+  </div>
+
+  <h2>Orçamento por categoria</h2>
+  <div class="card" id="cats"></div>
+  <div class="mut" id="notaCats" style="margin:8px 4px 0"></div>
+
+  <h2>Metas <a class="vt" href="#" id="btnNovaMeta">Nova meta</a></h2>
+  <div id="metas"></div>
+</div>
+<div id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.1/dist/umd/supabase.js"></script>
+<script src="util.js"></script>
+<script>
+const SUPABASE_URL = 'https://rgxtcesazjjongzzundn.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_dcaO4K5PeljI7vogQHQaxg_3hH_pIGT';
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let mes = hoje().slice(0, 8) + '01';
+let dados = [];
+let limite = 0;
+let uid = null;
+let limitesCat = {};
+let metas = [];
+let semTabelas = false;
+let tok = 0;
+
+function renderGeral(tot){
+  const bar = $('gBar');
+  if(limite > 0){
+    const p = tot / limite * 100;
+    $('gVal').textContent = brl(tot) + ' de ' + brl(limite);
+    $('gPct').textContent = Math.round(p) + '%';
+    bar.style.width = Math.min(p, 100) + '%';
+    bar.style.background = p > 100 ? '#dc2626' : p >= 80 ? '#d97706' : '#16a34a';
+    $('gTxt').textContent = tot <= limite ? 'Restam ' + brl(limite - tot) : 'Estourou em ' + brl(tot - limite);
+  } else {
+    $('gVal').textContent = 'Defina um limite';
+    $('gPct').textContent = '';
+    bar.style.width = '0';
+    $('gTxt').textContent = 'Toque aqui para definir o limite mensal.';
+  }
+}
+
+function renderCats(){
+  const porCat = {};
+  dados.forEach(x => { porCat[x.categoria] = (porCat[x.categoria] || 0) + Number(x.valor); });
+  const cats = CATEGORIAS.slice();
+  Object.keys(porCat).forEach(c => { if(!cats.includes(c)) cats.push(c); });
+  const linhas = cats.map(c => ({c, gasto: porCat[c] || 0, lim: limitesCat[c] || 0}));
+  linhas.sort((a, b) => {
+    if((b.lim > 0) !== (a.lim > 0)) return (b.lim > 0) - (a.lim > 0);
+    if(a.lim > 0) return (b.gasto / b.lim) - (a.gasto / a.lim);
+    return b.gasto - a.gasto;
+  });
+  const box = $('cats');
+  box.innerHTML = '';
+  linhas.forEach(({c, gasto, lim}) => {
+    const row = document.createElement('div');
+    row.className = 'catrow';
+    row.style.cursor = 'pointer';
+    row.onclick = () => editarLimiteCat(c);
+    const ic = document.createElement('div');
+    ic.className = 'ic';
+    ic.style.background = 'color-mix(in srgb, ' + corCat(c) + ' 16%, transparent)';
+    ic.style.color = corCat(c);
+    const i = document.createElement('i');
+    i.className = 'ti ti-' + iconeCat(c);
+    ic.appendChild(i);
+    const mid = document.createElement('div');
+    mid.className = 'mid';
+    const l1 = document.createElement('div');
+    l1.className = 'l1';
+    const n = document.createElement('span');
+    n.textContent = c;
+    const p = document.createElement('span');
+    p.className = 'pc';
+    const l2 = document.createElement('div');
+    l2.className = 'l2';
+    mid.appendChild(l1);
+    mid.appendChild(l2);
+    if(lim > 0){
+      const pct = gasto / lim * 100;
+      p.textContent = Math.round(pct) + '%';
+      if(pct > 100) p.style.color = '#dc2626';
+      l2.textContent = brl(gasto) + ' | ' + brl(lim);
+      const bar = document.createElement('div');
+      bar.className = 'bar';
+      const bi = document.createElement('i');
+      bi.style.width = Math.min(pct, 100) + '%';
+      bi.style.background = pct > 100 ? '#dc2626' : corCat(c);
+      bar.appendChild(bi);
+      mid.appendChild(bar);
+    } else {
+      p.textContent = 'Definir limite';
+      l2.textContent = brl(gasto);
+    }
+    l1.appendChild(n);
+    l1.appendChild(p);
+    row.appendChild(ic);
+    row.appendChild(mid);
+    box.appendChild(row);
+  });
+  const somaLim = Object.values(limitesCat).reduce((s, v) => s + v, 0);
+  let nota = 'Toque em uma categoria para definir ou remover o limite.';
+  if(somaLim > 0){
+    nota = 'Soma dos limites por categoria: ' + brl(somaLim);
+    if(limite > 0) nota += ' · orçamento do mês: ' + brl(limite) + (somaLim > limite ? ' (os limites passam do orçamento do mês)' : '');
+    nota += '.';
+  }
+  $('notaCats').textContent = nota;
+}
+
+function mesesRestantes(prazo){
+  const h = new Date();
+  const [y, m] = prazo.split('-').map(Number);
+  return (y - h.getFullYear()) * 12 + (m - 1 - h.getMonth()) + 1;
+}
+
+function renderMetas(){
+  const box = $('metas');
+  box.innerHTML = '';
+  if(semTabelas){
+    const c = document.createElement('div');
+    c.className = 'card mut';
+    c.textContent = 'As tabelas de planejamento ainda não existem no banco. Rode o script do Passo 1.';
+    box.appendChild(c);
+    return;
+  }
+  if(!metas.length){
+    const c = document.createElement('div');
+    c.className = 'card mut';
+    c.textContent = 'Nenhuma meta ainda. Toque em "Nova meta".';
+    box.appendChild(c);
+    return;
+  }
+  metas.forEach(m => {
+    const alvo = Number(m.valor_alvo), atual = Number(m.valor_atual);
+    const pct = Math.min(100, atual / alvo * 100);
+    const card = document.createElement('div');
+    card.className = 'meta';
+
+    const mt = document.createElement('div');
+    mt.className = 'mt';
+    const esq = document.createElement('div');
+    const nome = document.createElement('div');
+    nome.className = 'mn';
+    nome.textContent = m.nome;
+    const sub = document.createElement('div');
+    sub.className = 'ms';
+    sub.textContent = m.prazo ? 'até ' + nomeMes(m.prazo, 'long') + ' de ' + m.prazo.slice(0, 4) : 'sem prazo definido';
+    esq.appendChild(nome);
+    esq.appendChild(sub);
+    const chip = document.createElement('span');
+    chip.className = 'mp';
+    chip.textContent = Math.round(pct) + '%';
+    mt.appendChild(esq);
+    mt.appendChild(chip);
+
+    const mv = document.createElement('div');
+    mv.className = 'mv';
+    mv.textContent = brl(atual) + ' ';
+    const sp = document.createElement('span');
+    sp.textContent = '/ ' + brl(alvo);
+    mv.appendChild(sp);
+
+    const bar = document.createElement('div');
+    bar.className = 'bar';
+    const bi = document.createElement('i');
+    bi.style.width = pct + '%';
+    bar.appendChild(bi);
+
+    const mf = document.createElement('div');
+    mf.className = 'mf';
+    if(atual >= alvo){
+      mf.className = 'mf ok';
+      mf.textContent = 'Meta atingida';
+    } else if(!m.prazo){
+      mf.textContent = 'Faltam ' + brl(alvo - atual) + ' (sem prazo definido)';
+    } else {
+      const n = mesesRestantes(m.prazo);
+      mf.textContent = n < 1
+        ? 'Prazo vencido: faltam ' + brl(alvo - atual)
+        : 'Para chegar em ' + nomeMes(m.prazo, 'long') + ': ' + brl((alvo - atual) / n) + ' por mês';
+    }
+
+    const mb = document.createElement('div');
+    mb.className = 'mb';
+    const b1 = document.createElement('button');
+    b1.className = 'p';
+    b1.textContent = 'Aportar';
+    b1.onclick = () => aportar(m);
+    const b2 = document.createElement('button');
+    b2.textContent = 'Editar';
+    b2.onclick = () => abrirMeta(m);
+    mb.appendChild(b1);
+    mb.appendChild(b2);
+
+    card.appendChild(mt);
+    card.appendChild(mv);
+    card.appendChild(bar);
+    card.appendChild(mf);
+    card.appendChild(mb);
+    box.appendChild(card);
+  });
+}
+
+function render(){
+  renderGeral(soma(dados));
+  renderCats();
+  renderMetas();
+}
+
+async function carregar(){
+  const t = ++tok;
+  $('mesLabel').textContent = nomeMes(mes, 'long') + ' ' + mes.slice(0, 4);
+  const fim = addMeses(mes, 1);
+  let tudo = [], de = 0;
+  while(true){
+    const r = await db.from('gastos').select('categoria,valor')
+      .gte('data', mes).lt('data', fim)
+      .order('data').order('id')
+      .range(de, de + 999);
+    if(r.error){ toast('Erro: ' + r.error.message, true); return; }
+    tudo = tudo.concat(r.data);
+    if(r.data.length < 1000) break;
+    de += 1000;
+  }
+  const lc = await db.from('orcamentos_cat').select('categoria,limite');
+  const mt = await db.from('metas').select('*')
+    .order('prazo', {ascending: true, nullsFirst: false}).order('criado_em');
+  if(t !== tok) return;
+  dados = tudo;
+  semTabelas = !!(lc.error || mt.error);
+  limitesCat = {};
+  if(!lc.error) lc.data.forEach(x => { limitesCat[x.categoria] = Number(x.limite); });
+  metas = mt.error ? [] : mt.data;
+  render();
+}
+
+async function editarLimite(){
+  const s = prompt('Limite mensal (R$)', limite || '');
+  if(s === null) return;
+  const v = num(s);
+  const {error} = await db.from('orcamento').upsert({user_id: uid, limite_mensal: v});
+  if(error) return toast('Erro: ' + error.message, true);
+  limite = v;
+  render();
+  toast('Limite salvo ✓');
+}
+
+async function editarLimiteCat(c){
+  if(semTabelas) return toast('Rode primeiro o script do banco', true);
+  const s = prompt('Limite mensal para ' + c + ' (R$).\nDeixe em branco para remover.', limitesCat[c] || '');
+  if(s === null) return;
+  const v = num(s);
+  if(!s.trim() || v <= 0){
+    if(limitesCat[c]){
+      const {error} = await db.from('orcamentos_cat').delete().eq('categoria', c);
+      if(error) return toast('Erro: ' + error.message, true);
+      delete limitesCat[c];
+      toast('Limite removido');
+    }
+    render();
+    return;
+  }
+  const {error} = await db.from('orcamentos_cat').upsert({user_id: uid, categoria: c, limite: v});
+  if(error) return toast('Erro: ' + error.message, true);
+  limitesCat[c] = v;
+  render();
+  toast('Limite salvo ✓');
+}
+
+async function aportar(m){
+  const s = prompt('Quanto adicionar a "' + m.nome + '" (R$)?\nUse um valor negativo para retirar.');
+  if(s === null || !s.trim()) return;
+  const v = num(s);
+  if(!v) return toast('Valor inválido', true);
+  const novo = Math.max(0, Number(m.valor_atual) + v);
+  const {error} = await db.from('metas').update({valor_atual: novo}).eq('id', m.id);
+  if(error) return toast('Erro: ' + error.message, true);
+  toast('Aporte registrado ✓');
+  carregar();
+}
+
+function abrirMeta(m){
+  if($('plOv')) return;
+  if(semTabelas) return toast('Rode primeiro o script do banco', true);
+  const ed = !!m;
+  const ov = document.createElement('div');
+  ov.id = 'plOv';
+  const sh = document.createElement('div');
+  sh.id = 'plSh';
+  ov.appendChild(sh);
+  sh.innerHTML =
+    '<div class="cab"><strong>' + (ed ? 'Editar meta' : 'Nova meta') + '</strong><button type="button" id="plX" aria-label="Fechar"><i class="ti ti-x"></i></button></div>' +
+    '<label for="plNome">Nome da meta</label><input id="plNome" placeholder="Ex.: Reserva de emergência" autocomplete="off">' +
+    '<label for="plAlvo">Valor da meta (R$)</label><input id="plAlvo" inputmode="decimal" autocomplete="off">' +
+    '<label for="plAtual">Quanto já guardou (R$)</label><input id="plAtual" inputmode="decimal" autocomplete="off">' +
+    '<label for="plPrazo">Prazo (mês e ano, opcional)</label><input id="plPrazo" type="month">' +
+    '<button type="button" class="btn" id="plSalvar">Salvar</button>' +
+    (ed ? '<button type="button" class="btn sec" id="plApagar">Apagar meta</button>' : '');
+  document.body.appendChild(ov);
+  const fechar = () => ov.remove();
+  if(ed){
+    $('plNome').value = m.nome;
+    $('plAlvo').value = String(m.valor_alvo).replace('.', ',');
+    $('plAtual').value = String(m.valor_atual).replace('.', ',');
+    $('plPrazo').value = m.prazo ? m.prazo.slice(0, 7) : '';
+  }
+  ov.addEventListener('click', e => { if(e.target === ov) fechar(); });
+  $('plX').onclick = fechar;
+  $('plSalvar').onclick = async () => {
+    const nome = $('plNome').value.trim();
+    const alvo = num($('plAlvo').value);
+    const atual = num($('plAtual').value) || 0;
+    const pz = $('plPrazo').value;
+    if(!nome) return toast('Informe o nome da meta', true);
+    if(!(alvo > 0)) return toast('Informe o valor da meta', true);
+    if(atual < 0) return toast('O valor guardado não pode ser negativo', true);
+    const p = {nome, valor_alvo: alvo, valor_atual: atual, prazo: pz ? pz + '-01' : null};
+    $('plSalvar').disabled = true;
+    const res = ed
+      ? await db.from('metas').update(p).eq('id', m.id)
+      : await db.from('metas').insert(p);
+    $('plSalvar').disabled = false;
+    if(res.error) return toast('Erro: ' + res.error.message, true);
+    fechar();
+    toast('Meta salva ✓');
+    carregar();
+  };
+  if(ed){
+    $('plApagar').onclick = async () => {
+      if(!confirm('Apagar a meta "' + m.nome + '"?')) return;
+      const res = await db.from('metas').delete().eq('id', m.id);
+      if(res.error) return toast('Erro: ' + res.error.message, true);
+      fechar();
+      toast('Meta apagada');
+      carregar();
+    };
+  }
+}
+
+$('ant').onclick = () => { mes = addMeses(mes, -1); carregar(); };
+$('prox').onclick = () => { mes = addMeses(mes, 1); carregar(); };
+$('geral').onclick = editarLimite;
+$('btnNovaMeta').onclick = e => { e.preventDefault(); abrirMeta(null); };
+
+(async () => {
+  const {data} = await db.auth.getSession();
+  if(!data.session){ location.href = 'index.html'; return; }
+  uid = data.session.user.id;
+  const o = await db.from('orcamento').select('limite_mensal').eq('user_id', uid).maybeSingle();
+  if(!o.error && o.data) limite = Number(o.data.limite_mensal);
+  carregar();
+})();
+</script>
+</body>
+</html>
