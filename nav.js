@@ -227,5 +227,8 @@
     var sc = document.createElement('script');
     sc.src = 'dicas.js';
     document.body.appendChild(sc);
+    var sc2 = document.createElement('script');
+    sc2.src = 'calendario.js';
+    document.body.appendChild(sc2);
   }
 })();
