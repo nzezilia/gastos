@@ -1,7 +1,10 @@
 (function () {
+  if (window.CalendarioLoaded) return;
+  window.CalendarioLoaded = true;
+
   var st = document.createElement('style');
   st.textContent =
-    '.cstats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}' +
+    '.cstats{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px}' +
     '.cstats div{background:var(--bg);border-radius:12px;padding:8px 10px}' +
     '.cstats small{display:block;font-size:11px;color:var(--mut)}' +
     '.cstats b{font-size:14px}' +
@@ -27,7 +30,18 @@
   document.head.appendChild(st);
 
   var PCT = [0, 14, 28, 44, 62, 80];
+  var SEMANA = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
 
+  function isoL(dt) {
+    return dt.getFullYear() + '-' + ('0' + (dt.getMonth() + 1)).slice(-2) + '-' + ('0' + dt.getDate()).slice(-2);
+  }
+  function paraDataL(s) {
+    var p = s.split('-');
+    return new Date(+p[0], +p[1] - 1, +p[2]);
+  }
+  function hojeL() { return isoL(new Date()); }
+  function moeda(v) { return Number(v).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'}); }
+  function somaL(a) { return a.reduce(function (s, x) { return s + Number(x.valor); }, 0); }
   function compacto(v) {
     if (v >= 1000) return (v / 1000).toFixed(1).replace('.', ',') + 'k';
     return String(Math.round(v));
@@ -42,33 +56,34 @@
   function ddmm(dt) {
     return ('0' + dt.getDate()).slice(-2) + '/' + ('0' + (dt.getMonth() + 1)).slice(-2);
   }
+  function fmtDiaL(s) { return s.slice(8, 10) + '/' + s.slice(5, 7); }
+  function rotuloDiaL(s) { return fmtDiaL(s) + ' · ' + SEMANA[paraDataL(s).getDay()]; }
 
-  window.renderCalendario = function (el) {
+  window.montarCalendario = function (el, cfg) {
     el.innerHTML = '';
-    var base = filtrar(false);
+    var base = cfg.base;
+    var visaoC = cfg.visao;
+    var mesC = cfg.mes;
+    var selC = cfg.sel || '';
     var porDia = {};
     base.forEach(function (x) { porDia[x.data] = (porDia[x.data] || 0) + Number(x.valor); });
 
     var inicio, fimD;
-    if (visao === 'compra') {
-      inicio = paraData(mes);
-      fimD = new Date(+mes.slice(0, 4), +mes.slice(5, 7), 0);
+    if (visaoC === 'compra') {
+      inicio = paraDataL(mesC);
+      fimD = new Date(+mesC.slice(0, 4), +mesC.slice(5, 7), 0);
     } else {
-      var datas = dados.map(function (x) { return x.data; }).sort();
+      var datas = (cfg.dadosRange || base).map(function (x) { return x.data; }).sort();
       if (!datas.length) { el.textContent = 'Sem gastos nesta fatura.'; return; }
-      inicio = paraData(datas[0]);
-      fimD = paraData(datas[datas.length - 1]);
+      inicio = paraDataL(datas[0]);
+      fimD = paraDataL(datas[datas.length - 1]);
     }
 
     var valores = Object.keys(porDia).map(function (k) { return porDia[k]; });
     var max = Math.max.apply(null, valores.concat([1]));
-    var total = soma(base);
+    var total = somaL(base);
     var diaMax = '';
     Object.keys(porDia).forEach(function (k) { if (!diaMax || porDia[k] > porDia[diaMax]) diaMax = k; });
-
-    var agora = paraData(hoje());
-    var ate = agora < fimD ? agora : fimD;
-    var nDias = Math.max(1, Math.round((ate - inicio) / 86400000) + 1);
 
     var stats = document.createElement('div');
     stats.className = 'cstats';
@@ -82,9 +97,8 @@
       d.appendChild(b);
       stats.appendChild(d);
     }
-    tile('Total', brl(total));
-    tile('Maior dia' + (diaMax ? ' · ' + fmtDia(diaMax) : ''), brl(diaMax ? porDia[diaMax] : 0));
-    tile('Média por dia', brl(total / nDias));
+    tile('Total', moeda(total));
+    tile('Maior dia' + (diaMax ? ' · ' + fmtDiaL(diaMax) : ''), moeda(diaMax ? porDia[diaMax] : 0));
     el.appendChild(stats);
 
     var comeco = new Date(inicio);
@@ -101,13 +115,13 @@
       grid.appendChild(h);
     });
 
-    var hj = hoje();
-    var isoInicio = fmtISO(inicio);
+    var hj = hojeL();
+    var isoInicio = isoL(inicio);
     var semanas = [];
     var semAtual = null;
     var col = 0;
     for (var dt = new Date(comeco); dt <= final; dt.setDate(dt.getDate() + 1), col++) {
-      var iso = fmtISO(dt);
+      var iso = isoL(dt);
       var dentro = !(dt < inicio || dt > fimD);
       if (col % 7 === 0) { semAtual = {total: 0, primeiro: null, ultimo: null}; semanas.push(semAtual); }
       var b = document.createElement('button');
@@ -124,7 +138,7 @@
       semAtual.ultimo = new Date(dt);
 
       var n = nivel(tot, max);
-      b.className = 'c2' + ((col % 7) >= 5 ? ' we' : '') + (iso === diaSel ? ' sel' : '');
+      b.className = 'c2' + ((col % 7) >= 5 ? ' we' : '') + (iso === selC ? ' sel' : '');
       if (n > 0) {
         b.style.background = corNivel(n);
         if (n >= 4) b.style.color = '#fff';
@@ -132,7 +146,7 @@
       var num = document.createElement('span');
       num.className = 'n' + (iso === hj ? ' hj' : '');
       var dia = dt.getDate();
-      num.textContent = (visao === 'fatura' && (dia === 1 || iso === isoInicio)) ? dia + '/' + (dt.getMonth() + 1) : String(dia);
+      num.textContent = (visaoC === 'fatura' && (dia === 1 || iso === isoInicio)) ? dia + '/' + (dt.getMonth() + 1) : String(dia);
       var v = document.createElement('span');
       v.className = 'v';
       v.textContent = tot > 0 ? compacto(tot) : '';
@@ -144,7 +158,7 @@
         b.appendChild(fl);
       }
       (function (isoDia) {
-        b.onclick = function () { diaSel = (diaSel === isoDia ? '' : isoDia); render(); };
+        b.onclick = function () { cfg.aoSelecionar(selC === isoDia ? '' : isoDia); };
       })(iso);
       grid.appendChild(b);
     }
@@ -168,14 +182,14 @@
 
     var det = document.createElement('div');
     det.style.marginTop = '14px';
-    if (diaSel) {
-      var itens = base.filter(function (x) { return x.data === diaSel; });
+    if (selC) {
+      var itens = base.filter(function (x) { return x.data === selC; });
       var cab = document.createElement('div');
       cab.style.cssText = 'display:flex;justify-content:space-between;font-weight:600;margin-bottom:4px';
       var a1 = document.createElement('span');
-      a1.textContent = rotuloDia(diaSel);
+      a1.textContent = rotuloDiaL(selC);
       var t1 = document.createElement('span');
-      t1.textContent = brl(soma(itens));
+      t1.textContent = moeda(somaL(itens));
       cab.appendChild(a1);
       cab.appendChild(t1);
       det.appendChild(cab);
@@ -185,7 +199,7 @@
         vz.textContent = 'Nenhum gasto neste dia.';
         det.appendChild(vz);
       }
-      itens.forEach(function (g) { det.appendChild(itemLanc(g)); });
+      itens.forEach(function (g) { det.appendChild(cfg.item(g)); });
     } else {
       var dica = document.createElement('div');
       dica.className = 'mut';
@@ -215,7 +229,7 @@
       bb.appendChild(bi);
       var vv = document.createElement('span');
       vv.className = 'sv';
-      vv.textContent = brl(s.total);
+      vv.textContent = moeda(s.total);
       r.appendChild(l);
       r.appendChild(bb);
       r.appendChild(vv);
@@ -224,5 +238,55 @@
     el.appendChild(sem);
   };
 
-  try { if (typeof render === 'function' && typeof dados !== 'undefined' && dados.length) render(); } catch (e) {}
+  var caminho = location.pathname;
+
+  if (/resumo\.html$/i.test(caminho) && typeof renderCalendario === 'function') {
+    window.renderCalendario = function (el) {
+      window.montarCalendario(el, {
+        base: filtrar(false),
+        dadosRange: dados,
+        mes: mes,
+        visao: visao,
+        sel: diaSel,
+        aoSelecionar: function (iso) { diaSel = iso; render(); },
+        item: itemLanc
+      });
+    };
+    try { if (typeof render === 'function' && dados.length) render(); } catch (e) {}
+  }
+
+  if (/inicio\.html$/i.test(caminho)) {
+    var wrap = document.querySelector('.wrap');
+    if (wrap && !document.getElementById('calInicio')) {
+      var h2 = document.createElement('h2');
+      h2.textContent = 'Calendário';
+      var card = document.createElement('div');
+      card.className = 'card';
+      card.id = 'calInicio';
+      var link = wrap.querySelector('.linkcard');
+      wrap.insertBefore(h2, link);
+      wrap.insertBefore(card, link);
+      var sel = '';
+      var mesVisto = '';
+      var desenhar = function () {
+        if (mesVisto !== mes) { mesVisto = mes; sel = ''; }
+        window.montarCalendario(card, {
+          base: dados,
+          dadosRange: dados,
+          mes: mes,
+          visao: 'compra',
+          sel: sel,
+          aoSelecionar: function (iso) { sel = iso; desenhar(); },
+          item: function (g) { return criarTx(g, carregar); }
+        });
+      };
+      var renderOriginal = window.render;
+      window.render = function () {
+        var r = renderOriginal.apply(this, arguments);
+        try { desenhar(); } catch (e) {}
+        return r;
+      };
+      try { desenhar(); } catch (e) {}
+    }
+  }
 })();
