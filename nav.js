@@ -231,4 +231,10 @@
     sc2.src = 'calendario.js';
     document.body.appendChild(sc2);
   }
+
+  if (pag === 'inicio.html') {
+    var sc3 = document.createElement('script');
+    sc3.src = 'calendario.js';
+    document.body.appendChild(sc3);
+  }
 })();
