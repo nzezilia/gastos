@@ -8,7 +8,7 @@
     'resumo.html': ['dicas.js', 'calendario.js'],
     'inicio.html': ['calendario.js', 'carteira.js']
   };
-  (MAPA[pag] || []).forEach(function (arquivo) {
+  ['logos.js'].concat(MAPA[pag] || []).forEach(function (arquivo) {
     var s = document.createElement('script');
     s.src = arquivo;
     document.body.appendChild(s);
