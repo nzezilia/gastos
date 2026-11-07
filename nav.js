@@ -223,18 +223,7 @@
     garantirEntradas();
   }
 
-  if (pag === 'resumo.html') {
-    var sc = document.createElement('script');
-    sc.src = 'dicas.js';
-    document.body.appendChild(sc);
-    var sc2 = document.createElement('script');
-    sc2.src = 'calendario.js';
-    document.body.appendChild(sc2);
-  }
-
-  if (pag === 'inicio.html') {
-    var sc3 = document.createElement('script');
-    sc3.src = 'calendario.js';
-    document.body.appendChild(sc3);
-  }
+  var sx = document.createElement('script');
+  sx.src = 'extras.js';
+  document.body.appendChild(sx);
 })();
