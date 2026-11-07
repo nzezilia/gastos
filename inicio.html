@@ -215,8 +215,10 @@ function render(){
     $('btnEnt').hidden = false;
   }
 
-  const lDia = $('stDiaL'), vDia = $('stDiaV'), vOrc = $('stOrcV'), bOrc = $('stOrcBar');
+   const lDia = $('stDiaL'), vDia = $('stDiaV'), hDia = $('stDiaH'), vOrc = $('stOrcV'), bOrc = $('stOrcBar');
   vDia.className = '';
+  hDia.hidden = true;
+  hDia.className = 'sub';
   if(!(limite > 0)){
     lDia.textContent = 'Orçamento';
     vDia.textContent = 'Definir limite';
@@ -233,9 +235,18 @@ function render(){
       const diasMes = new Date(+hj.slice(0, 4), +hj.slice(5, 7), 0).getDate();
       const R = diasMes - dia + 1;
       const H = soma(dados.filter(x => x.data === hj));
-      const A = limite - (totMes - H);
-      if(A <= 0){ vDia.textContent = 'Esgotado'; vDia.className = 'neg'; }
-      else vDia.textContent = brl(A / R);
+      const restante = limite - totMes;
+      if(restante <= 0){ vDia.textContent = 'Esgotado'; vDia.className = 'neg'; }
+      else vDia.textContent = brl(restante / R);
+      const baseDia = (limite - (totMes - H)) / R;
+      const disp = baseDia - H;
+      hDia.hidden = false;
+      if(disp > 0.005){
+        hDia.textContent = 'Disponível hoje: ' + brl(disp);
+      } else {
+        hDia.className = 'sub neg';
+        hDia.textContent = 'Disponível hoje: ' + brl(0);
+      }
     } else if(futuro){
       lDia.textContent = 'Posso gastar por dia';
       vDia.textContent = '—';
