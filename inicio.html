@@ -360,6 +360,7 @@ $('car').addEventListener('scroll', () => {
   document.querySelectorAll('#dots i').forEach((d, k) => d.classList.toggle('on', k === i));
 }, {passive: true});
 
+document.addEventListener('visibilitychange', () => { if(!document.hidden && uid) carregar(); });
 (async () => {
   const {data} = await db.auth.getSession();
   if(!data.session){ location.href = 'index.html'; return; }
