@@ -259,7 +259,7 @@ async function carregarBancos(){
   if(m.error){ toast('Erro: ' + m.error.message, true); return; }
   nomesMeios = m.data.map(x => x.nome);
   const c = await db.from('contas').select('nome').order('nome');
-  const set = new Set(c.error ? [] : c.data.map(x => x.nome));
+  const set = new Set(c.error ? [] : c.data.map(x => x.nome.replace(/^(cart[aã]o|conta)\s+/i, '').trim()));
   nomesMeios.forEach(n => {
     const r = /^(cart[aã]o|conta)\s+(.+)$/i.exec(n);
     if(r) set.add(r[2]);
