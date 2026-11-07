@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#4f46e5">
+<meta name="theme-color" content="#1e3a8a">
 <title>Gastos</title>
 <link rel="stylesheet" href="estilo.css">
 <script src="nav.js" defer></script>
@@ -31,6 +31,8 @@ input,select{width:100%;padding:12px;font-size:16px;border:1px solid var(--bd);b
 .chips{display:flex;flex-wrap:wrap;gap:8px}
 .chip{padding:10px 14px;border-radius:999px;border:1px solid var(--bd);background:var(--card);color:var(--txt);font-size:15px}
 .chip.on{background:var(--pri);border-color:var(--pri);color:#fff}
+.chip.off{opacity:.45}
+.chip .lg{width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:700;flex:none}
 .btn{width:100%;padding:16px;margin-top:16px;border:0;border-radius:12px;background:var(--pri);color:#fff;font-size:18px;font-weight:600}
 .btn:disabled{opacity:.6}
 .link{background:none;border:0;color:var(--mut);font-size:14px;padding:8px}
@@ -70,8 +72,10 @@ summary{cursor:pointer;color:var(--pri);margin-top:14px}
   <div class="card">
     <label for="valor">Valor (R$)</label>
     <input id="valor" class="big" inputmode="decimal" placeholder="0,00" autocomplete="off">
-    <label>Onde</label>
-    <div id="meios" class="chips"></div>
+    <label>Conta</label>
+    <div id="bancos" class="chips"></div>
+    <label>Pagamento</label>
+    <div id="formas" class="chips"></div>
     <label>Categoria</label>
     <div id="cats" class="chips"></div>
     <label for="desc">Descrição (opcional)</label>
@@ -103,12 +107,15 @@ summary{cursor:pointer;color:var(--pri);margin-top:14px}
 const SUPABASE_URL = 'https://rgxtcesazjjongzzundn.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_dcaO4K5PeljI7vogQHQaxg_3hH_pIGT';
 const CATEGORIAS = ['Mercado','Alimentação','Transporte','Moradia','Saúde','Lazer','Educação','Assinaturas','Compras','Outros'];
+const CORES_B = ['#2563eb', '#7c3aed', '#db2777', '#ea580c', '#16a34a', '#0891b2', '#ca8a04', '#475569'];
 
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const $ = id => document.getElementById(id);
-let meio = localStorage.getItem('meio') || '';
+let banco = localStorage.getItem('banco') || '';
+let forma = localStorage.getItem('forma') || 'saldo';
 let cat = '';
 let nomesMeios = [];
+let bancosLista = [];
 let historico = [];
 
 function hoje(){
@@ -147,19 +154,133 @@ function chips(el, itens, sel, onSel){
   });
 }
 
-function desenharMeios(){
-  chips($('meios'), nomesMeios, meio, n => { meio = n; localStorage.setItem('meio', n); });
+function corLogo(nome){
+  let h = 0;
+  for(let i = 0; i < nome.length; i++) h = (h * 31 + nome.charCodeAt(i)) >>> 0;
+  return CORES_B[h % CORES_B.length];
+}
+function inicial(nome){
+  const p = nome.replace(/^(cart[aã]o|conta)\s+/i, '').trim().split(/\s+/).filter(Boolean);
+  const grandes = p.filter(w => w.length > 2);
+  if(grandes.length >= 2) return (grandes[0][0] + grandes[1][0]).toUpperCase();
+  const w = grandes[0] || p[0] || '?';
+  return w.slice(0, 2).toUpperCase();
+}
+function criarChip(texto, ativo, aoClicar, logoNome, icone, apagado){
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'chip' + (ativo ? ' on' : '') + (apagado ? ' off' : '');
+  if(logoNome){
+    const lg = document.createElement('span');
+    lg.className = 'lg';
+    lg.setAttribute('data-logo', logoNome);
+    lg.style.background = corLogo(logoNome);
+    lg.textContent = inicial(logoNome);
+    b.appendChild(lg);
+  } else if(icone){
+    const i = document.createElement('i');
+    i.className = 'ti ti-' + icone;
+    b.appendChild(i);
+  }
+  b.appendChild(document.createTextNode(texto));
+  b.onclick = aoClicar;
+  return b;
+}
+
+function temCredito(b){ return nomesMeios.includes('Cartão ' + b); }
+function ajustarForma(){
+  if(banco === 'Dinheiro') forma = 'saldo';
+  else if(forma === 'credito' && !temCredito(banco)) forma = 'saldo';
+}
+function meioAtual(){
+  if(!banco) return '';
+  if(banco === 'Dinheiro') return 'Dinheiro';
+  return (forma === 'credito' ? 'Cartão ' : 'Conta ') + banco;
+}
+function salvarEscolha(){
+  localStorage.setItem('banco', banco);
+  localStorage.setItem('forma', forma);
+}
+function bancoDeMeio(n){
+  if(n === 'Dinheiro') return {b: 'Dinheiro', f: 'saldo'};
+  let r = /^cart[aã]o\s+(.+)$/i.exec(n);
+  if(r) return {b: r[1], f: 'credito'};
+  r = /^conta\s+(.+)$/i.exec(n);
+  if(r) return {b: r[1], f: 'saldo'};
+  return null;
+}
+
+function desenharBancos(){
+  const box = $('bancos');
+  box.innerHTML = '';
+  if(!bancosLista.length){
+    const v = document.createElement('div');
+    v.className = 'mut';
+    v.style.textTransform = 'none';
+    v.textContent = 'Nenhuma conta ainda. Adicione em Início, em "Minhas contas".';
+    box.appendChild(v);
+    return;
+  }
+  bancosLista.forEach(b => {
+    box.appendChild(criarChip(b, b === banco, () => {
+      banco = b;
+      ajustarForma();
+      salvarEscolha();
+      desenharBancos();
+      desenharFormas();
+    }, b === 'Dinheiro' ? null : b, b === 'Dinheiro' ? 'cash' : null, false));
+  });
+}
+function desenharFormas(){
+  const box = $('formas');
+  box.innerHTML = '';
+  if(!banco) return;
+  if(banco !== 'Dinheiro'){
+    const cred = temCredito(banco);
+    box.appendChild(criarChip('Crédito', forma === 'credito', () => {
+      if(!cred) return toast('Esta conta não tem cartão de crédito cadastrado', true);
+      forma = 'credito';
+      salvarEscolha();
+      desenharFormas();
+    }, null, 'credit-card', !cred));
+  }
+  box.appendChild(criarChip(banco === 'Dinheiro' ? 'Dinheiro em mãos' : 'Saldo da conta', forma === 'saldo', () => {
+    forma = 'saldo';
+    salvarEscolha();
+    desenharFormas();
+  }, null, 'wallet', false));
 }
 function desenharCats(){
   chips($('cats'), CATEGORIAS, cat, n => cat = n);
 }
 
-async function carregarMeios(){
-  const {data, error} = await db.from('meios_pagamento').select('nome').order('nome');
-  if(error){ toast('Erro: ' + error.message, true); return; }
-  nomesMeios = data.map(x => x.nome);
-  if(!nomesMeios.includes(meio)) meio = nomesMeios[0] || '';
-  desenharMeios();
+async function carregarBancos(){
+  const m = await db.from('meios_pagamento').select('nome').order('nome');
+  if(m.error){ toast('Erro: ' + m.error.message, true); return; }
+  nomesMeios = m.data.map(x => x.nome);
+  const c = await db.from('contas').select('nome').order('nome');
+  const set = new Set(c.error ? [] : c.data.map(x => x.nome));
+  nomesMeios.forEach(n => {
+    const r = /^(cart[aã]o|conta)\s+(.+)$/i.exec(n);
+    if(r) set.add(r[2]);
+  });
+  if(nomesMeios.includes('Dinheiro')) set.add('Dinheiro');
+  bancosLista = [...set].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  if(!bancosLista.includes(banco)) banco = bancosLista[0] || '';
+  ajustarForma();
+  desenharBancos();
+  desenharFormas();
+}
+
+async function garantirMeio(nome){
+  if(nomesMeios.includes(nome)) return true;
+  const r = await db.from('meios_pagamento').insert({nome: nome});
+  if(r.error && r.error.code !== '23505'){
+    toast('Erro: ' + r.error.message, true);
+    return false;
+  }
+  nomesMeios.push(nome);
+  return true;
 }
 
 async function carregarHistorico(){
@@ -211,7 +332,15 @@ function sugerir(){
 function aplicar(h){
   $('desc').value = h.desc;
   if(CATEGORIAS.includes(h.cat)){ cat = h.cat; desenharCats(); }
-  if(nomesMeios.includes(h.meio)){ meio = h.meio; localStorage.setItem('meio', meio); desenharMeios(); }
+  const x = bancoDeMeio(h.meio);
+  if(x && bancosLista.includes(x.b)){
+    banco = x.b;
+    forma = x.f;
+    ajustarForma();
+    salvarEscolha();
+    desenharBancos();
+    desenharFormas();
+  }
   if(!$('valor').value.trim()) $('valor').value = String(h.valor).replace('.', ',');
   $('sugestoes').innerHTML = '';
 }
@@ -256,8 +385,9 @@ async function resumo(){
 async function salvar(){
   const v = num($('valor').value);
   if(v <= 0) return toast('Informe o valor', true);
-  if(!meio) return toast('Escolha onde foi o gasto', true);
+  if(!banco) return toast('Escolha a conta', true);
   if(!cat) return toast('Escolha a categoria', true);
+  const meio = meioAtual();
   const n = Math.max(1, parseInt($('parcelas').value) || 1);
   const data = $('data').value || hoje();
   const rec = num($('rec').value);
@@ -280,6 +410,7 @@ async function salvar(){
     });
   }
   $('btnSalvar').disabled = true;
+  if(!(await garantirMeio(meio))){ $('btnSalvar').disabled = false; return; }
   const {error} = await db.from('gastos').insert(linhas);
   $('btnSalvar').disabled = false;
   if(error) return toast('Erro: ' + error.message, true);
@@ -301,7 +432,7 @@ async function mostrar(){
   if(logado){
     $('data').value = hoje();
     desenharCats();
-    await carregarMeios();
+    await carregarBancos();
     resumo();
     carregarHistorico();
   }
