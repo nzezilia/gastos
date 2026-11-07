@@ -5,7 +5,7 @@
 
   var st = document.createElement('style');
   st.textContent =
-    '.ccar{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch;align-items:stretch}' +
+    '.ccar{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch;align-items:flex-start}' +
     '.ccar::-webkit-scrollbar{display:none}' +
     '.cslide{flex:0 0 100%;scroll-snap-align:center;display:flex}' +
     '.cslide .card{width:100%}' +
@@ -334,7 +334,8 @@
       la.appendChild(v2);
       return;
     }
-    if (!contas.length) {
+    var lista = listaContas();
+    if (!lista.length) {
       var v3 = document.createElement('div');
       v3.className = 'mut';
       v3.textContent = 'Nenhuma conta ainda. Toque no + para adicionar.';
@@ -347,7 +348,7 @@
       tot.appendChild(s1);
       tot.appendChild(b1);
     }
-    contas.forEach(function (c) {
+    lista.forEach(function (c) {
       var el = document.createElement('div');
       el.className = 'cc';
       el.onclick = function () { abrirConta(c); };
@@ -370,15 +371,32 @@
       l3.className = 'l3';
       var esq = document.createElement('span');
       var dd = c.atualizado_em ? paraDataBr(c.atualizado_em) : '';
-      esq.textContent = 'Saldo atual' + (dd ? ' · atualizado em ' + dd : '');
+      esq.textContent = c._novo ? 'Saldo não informado' : 'Saldo atual' + (dd ? ' · atualizado em ' + dd : '');
       var bv = document.createElement('b');
-      bv.textContent = moeda(c.saldo);
-      if (Number(c.saldo) < 0) bv.className = 'neg';
+      bv.textContent = c._novo ? 'Informar saldo' : moeda(c.saldo);
+      if (!c._novo && Number(c.saldo) < 0) bv.className = 'neg';
       l3.appendChild(esq);
       l3.appendChild(bv);
       el.appendChild(l3);
       la.appendChild(el);
     });
+  }
+  /* Contas cadastradas + bancos que já aparecem nos lançamentos (sem saldo informado ainda) */
+  function listaContas() {
+    var strip = function (n) { return n.replace(/^(cart[aã]o|conta)\s+/i, '').trim(); };
+    var tem = {};
+    contas.forEach(function (c) { tem[strip(c.nome).toLowerCase()] = true; });
+    var extras = [], vistos = {};
+    meios.forEach(function (m) {
+      var r = /^(cart[aã]o|conta)\s+(.+)$/i.exec(m.nome);
+      var banco = r ? r[2].trim() : (m.nome === 'Dinheiro' ? 'Dinheiro' : '');
+      var k = banco.toLowerCase();
+      if (!banco || tem[k] || vistos[k]) return;
+      vistos[k] = true;
+      extras.push({_novo: true, nome: banco, tipo: banco === 'Dinheiro' ? 'dinheiro' : 'corrente', saldo: 0});
+    });
+    extras.sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); });
+    return contas.concat(extras);
   }
   function paraDataBr(s) { return s.slice(8, 10) + '/' + s.slice(5, 7); }
 
@@ -716,7 +734,7 @@
   function abrirConta(c) {
     if (g('ctOv')) return;
     if (semContas) return aviso('Rode primeiro o script do banco', true);
-    var ed = !!c;
+    var ed = !!c && !c._novo;
     var ov = folha(
       '<div class="cab"><strong>' + (ed ? 'Editar conta' : 'Nova conta') + '</strong><button type="button" id="ctX" aria-label="Fechar"><i class="ti ti-x"></i></button></div>' +
       '<label for="ctNome">Nome</label><input id="ctNome" placeholder="Ex.: Conta Inter" autocomplete="off">' +
@@ -737,6 +755,9 @@
       g('ctNome').value = c.nome;
       tipo.value = c.tipo;
       g('ctSaldo').value = String(c.saldo).replace('.', ',');
+    } else if (c && c._novo) {
+      g('ctNome').value = c.nome;
+      tipo.value = c.tipo;
     }
     g('ctSalvar').onclick = async function () {
       var nome = g('ctNome').value.trim();
