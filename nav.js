@@ -46,7 +46,7 @@
     'Outros': 'dots', 'Pix': 'bolt', 'Dinheiro': 'cash'
   };
   var pag = (location.pathname.split('/').pop() || 'index.html').toLowerCase();
-  var ativa = pag === 'importar.html' ? 'ferramentas.html' : (pag === 'resumo.html' ? 'inicio.html' : pag);
+  var ativa = (pag === 'importar.html' || pag === 'adicionais.html') ? 'ferramentas.html' : (pag === 'resumo.html' ? 'inicio.html' : pag);
   var itens = [
     ['inicio.html', 'home', 'Início', ''],
     ['transacoes.html', 'list-details', 'Transações', ''],
