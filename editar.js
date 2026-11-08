@@ -46,6 +46,9 @@
     var m = await db.from('meios_pagamento').select('nome').order('nome');
     var meios = m.error ? [] : m.data.map(function (x) { return x.nome; });
     if (meios.indexOf(g.meio_pagamento) < 0) meios.push(g.meio_pagamento);
+    var ad = await db.from('cartoes_adicionais').select('titular').eq('cartao_principal', g.meio_pagamento).order('titular');
+    var tits = ad.error ? [] : ad.data.map(function (x) { return x.titular; });
+    if (g.titular && tits.indexOf(g.titular) < 0) tits.push(g.titular);
     var cats = typeof CATEGORIAS !== 'undefined' ? CATEGORIAS.slice() : [];
     if (cats.indexOf(g.categoria) < 0) cats.push(g.categoria);
 
