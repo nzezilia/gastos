@@ -82,6 +82,12 @@
     preencher($('edCat'), cats, g.categoria);
     preencher($('edMeio'), meios, g.meio_pagamento);
     $('edDesc').value = g.descricao || '';
+    if (tits.length) {
+      $('edQuemBox').hidden = false;
+      preencher($('edQuem'), [''].concat(tits), g.titular || '');
+      $('edQuem').options[0].textContent = 'Titular';
+    }
+    $('edMeio').onchange = function () { $('edQuemBox').hidden = true; };
     $('edTipo').value = g.tipo || 'variavel';
 
     ov.addEventListener('click', function (e) { if (e.target === ov) fechar(); });
