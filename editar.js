@@ -98,14 +98,17 @@
       if (!(v > 0)) return aviso('Informe o valor', true);
       if (!$('edData').value) return aviso('Informe a data', true);
       $('edSalvar').disabled = true;
-      var res = await db.from('gastos').update({
+            var p = {
         valor: v,
         data: $('edData').value,
         categoria: $('edCat').value,
         meio_pagamento: $('edMeio').value,
         descricao: $('edDesc').value.trim() || null,
         tipo: $('edTipo').value
-      }).eq('id', id);
+      };
+      if (!$('edQuemBox').hidden) p.titular = $('edQuem').value || null;
+      else if (p.meio_pagamento !== g.meio_pagamento) p.titular = null;
+      var res = await db.from('gastos').update(p).eq('id', id);
       $('edSalvar').disabled = false;
       if (res.error) return aviso('Erro: ' + res.error.message, true);
       fechar();
