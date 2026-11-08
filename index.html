@@ -419,7 +419,8 @@ async function salvar(){
       parcelas: n,
       parcela_numero: i,
       recompensa: i === 1 ? rec : 0,
-      origem: 'manual'
+            origem: 'manual',
+      ...(quem ? {titular: quem} : {})
     });
   }
   $('btnSalvar').disabled = true;
