@@ -64,6 +64,7 @@
       '<label for="edData">Data</label><input id="edData" type="date">' +
       '<label for="edCat">Categoria</label><select id="edCat"></select>' +
       '<label for="edMeio">Onde</label><select id="edMeio"></select>' +
+      '<div id="edQuemBox" hidden><label for="edQuem">Quem usou</label><select id="edQuem"></select></div>' +
       '<label for="edDesc">Descrição</label><input id="edDesc" autocomplete="off">' +
       '<label for="edTipo">Tipo</label><select id="edTipo"><option value="variavel">Variável</option><option value="fixo">Fixo</option></select>' +
       '<button type="button" class="btn" id="edSalvar">Salvar alterações</button>' +
