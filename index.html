@@ -269,6 +269,9 @@ async function carregarBancos(){
   });
   if(nomesMeios.includes('Dinheiro')) set.add('Dinheiro');
   bancosLista = [...set].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  const ad = await db.from('cartoes_adicionais').select('cartao_principal,titular').order('titular');
+  adics = {};
+  if(!ad.error) ad.data.forEach(x => { (adics[x.cartao_principal] = adics[x.cartao_principal] || []).push(x.titular); });
   if(!bancosLista.includes(banco)) banco = bancosLista[0] || '';
   ajustarForma();
   desenharBancos();
