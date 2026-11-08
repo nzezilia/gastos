@@ -234,7 +234,14 @@ function desenharBancos(){
     }, b === 'Dinheiro' ? null : b, b === 'Dinheiro' ? 'cash' : null, false));
   });
 }
+function desenharQuem(){
+  const lista = (forma === 'credito' && banco && adics[meioAtual()]) || [];
+  $('quemBox').hidden = !lista.length;
+  if(!lista.includes(quem)) quem = '';
+  chips($('quem'), ['Titular'].concat(lista), quem || 'Titular', n => { quem = n === 'Titular' ? '' : n; });
+}
 function desenharFormas(){
+  desenharQuem();
   const box = $('formas');
   box.innerHTML = '';
   if(!banco) return;
