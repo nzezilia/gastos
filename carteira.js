@@ -808,7 +808,9 @@
     '<div class="cslide"><div class="card"><div class="ch"><div class="ct"><i class="ti ti-wallet"></i>Minhas contas</div>' +
     '<button type="button" class="cadd" id="caAdd" aria-label="Adicionar conta"><i class="ti ti-plus"></i></button></div><div class="ctot" id="caTot"></div><div id="caList"></div></div></div>' +
     '</div><div class="dots2" id="dots2"><i class="on"></i><i></i></div>';
-  ult.parentNode.insertBefore(box, h2 || ult);
+  var catsEl = g('cats');
+var h2Cats = catsEl ? catsEl.previousElementSibling : null;
+ult.parentNode.insertBefore(box, h2Cats || h2 || ult);
   if (h2) h2.style.display = 'none';
   ult.style.display = 'none';
 
