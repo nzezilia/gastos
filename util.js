@@ -90,6 +90,7 @@ function criarTx(g, aoSalvar){
   let sub = g.meio_pagamento;
   if(g.descricao) sub += ' · ' + g.categoria;
   if(g.parcelas > 1) sub += ' · ' + g.parcela_numero + '/' + g.parcelas;
+  if(g.titular) sub += ' · ' + g.titular;
   s.textContent = sub;
   mid.appendChild(t); mid.appendChild(s);
   const vl = document.createElement('div');
