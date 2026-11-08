@@ -1,0 +1,21 @@
+-- Rode no Supabase: SQL Editor > New query > colar > Run
+alter table gastos add column if not exists titular text;
+
+create table if not exists cartoes_adicionais (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  cartao_principal text not null,
+  titular text not null,
+  digitos text,
+  limite numeric(12,2),
+  criado_em timestamptz default now(),
+  unique (user_id, cartao_principal, titular)
+);
+
+alter table cartoes_adicionais enable row level security;
+
+drop policy if exists adicionais_dono on cartoes_adicionais;
+create policy adicionais_dono on cartoes_adicionais
+  for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+create index if not exists gastos_titular_idx on gastos (meio_pagamento, titular);
