@@ -14,6 +14,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Gastos">
 <style>
 .car{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch}
@@ -36,55 +37,72 @@
 .fic.out{color:#dc2626}
 .fl small{display:block;font-size:11px;opacity:.85}
 .fl b{font-size:14px}
-.stat .sub{font-size:12px;font-weight:600;margin-top:6px;color:#0f766e}
-.stat .sub.neg{color:var(--err)}
-@media(prefers-color-scheme:dark){.stat .sub{color:#2dd4bf}}
+
+/* Cabeçalho full-bleed */
+html body{padding-top:0}
+.topo{background:linear-gradient(160deg,var(--pri),color-mix(in srgb,var(--pri) 62%,#000));color:#fff;border-radius:0 0 32px 32px;padding-top:env(safe-area-inset-top);box-shadow:0 14px 30px -18px var(--pri)}
+.topo-in{max-width:480px;margin:0 auto;padding:12px 16px 22px}
+.topo .hdr{margin-bottom:8px}
+.topo .mesnav button,.topo .hdr .ib{color:rgba(255,255,255,.85)}
+.topo .hero{background:none;box-shadow:none;border-radius:0;padding:6px 4px 0}
+.topo .hero .nx{top:6px;right:4px}
+.topo .dots i{background:rgba(255,255,255,.35)}
+.topo .dots i.on{background:#fff}
+.topo .stats{margin-top:14px}
+.topo .stat{background:rgba(255,255,255,.16);border:0;box-shadow:none;color:#fff}
+.topo .stat small{color:rgba(255,255,255,.8)}
+.topo .stat b.neg{color:#fecaca}
+.topo .stat .mini{background:rgba(255,255,255,.28)}
 </style>
 </head>
 <body>
+<header class="topo">
+  <div class="topo-in">
+    <div class="hdr">
+      <div class="mesnav">
+        <button id="ant" aria-label="Mês anterior"><i class="ti ti-chevron-left"></i></button>
+        <span id="mesLabel"></span>
+        <button id="prox" aria-label="Próximo mês"><i class="ti ti-chevron-right"></i></button>
+      </div>
+      <button id="btnSair" class="ib" aria-label="Sair"><i class="ti ti-logout"></i></button>
+    </div>
+
+    <div class="car" id="car">
+      <div class="slide">
+        <div class="hero">
+          <i class="ti ti-chevron-right nx" id="nx" aria-hidden="true"></i>
+          <div class="hl">Gasto do mês</div>
+          <div class="hv" id="hTotal">R$ 0,00</div>
+          <div class="hrow">
+            <div class="hc" id="hCmp"></div>
+            <svg id="hSpark" width="120" height="40" viewBox="0 0 120 40" role="img" aria-label="Gastos dos últimos seis meses"></svg>
+          </div>
+        </div>
+      </div>
+      <div class="slide">
+        <div class="hero res">
+          <i class="ti ti-chevron-left nx" id="pv" aria-hidden="true"></i>
+          <div class="hl">Resultado do mês</div>
+          <div class="rv" id="rVal">—</div>
+          <div class="rs" id="rSub"></div>
+          <button id="btnEnt" class="hbtn" hidden>Registrar entrada</button>
+          <div class="fluxo">
+            <div class="fl"><span class="fic in"><i class="ti ti-arrow-down"></i></span><div><small>Entradas</small><b id="fEnt">R$ 0,00</b></div></div>
+            <div class="fl"><span class="fic out"><i class="ti ti-arrow-up"></i></span><div><small>Saídas</small><b id="fSai">R$ 0,00</b></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="dots" id="dots"><i class="on"></i><i></i></div>
+
+    <div class="stats">
+      <div class="stat" id="stDia"><small id="stDiaL">Posso gastar por dia</small><b id="stDiaV">—</b></div>
+      <div class="stat" id="stOrc"><small>Orçamento usado</small><b id="stOrcV">—</b><div class="mini"><i id="stOrcBar"></i></div></div>
+    </div>
+  </div>
+</header>
+
 <div class="wrap">
-  <div class="hdr">
-    <div class="mesnav">
-      <button id="ant" aria-label="Mês anterior"><i class="ti ti-chevron-left"></i></button>
-      <span id="mesLabel"></span>
-      <button id="prox" aria-label="Próximo mês"><i class="ti ti-chevron-right"></i></button>
-    </div>
-    <button id="btnSair" class="ib" aria-label="Sair"><i class="ti ti-logout"></i></button>
-  </div>
-
-  <div class="car" id="car">
-    <div class="slide">
-      <div class="hero">
-        <i class="ti ti-chevron-right nx" id="nx" aria-hidden="true"></i>
-        <div class="hl">Gasto do mês</div>
-        <div class="hv" id="hTotal">R$ 0,00</div>
-        <div class="hrow">
-          <div class="hc" id="hCmp"></div>
-          <svg id="hSpark" width="120" height="40" viewBox="0 0 120 40" role="img" aria-label="Gastos dos últimos seis meses"></svg>
-        </div>
-      </div>
-    </div>
-    <div class="slide">
-      <div class="hero res">
-        <i class="ti ti-chevron-left nx" id="pv" aria-hidden="true"></i>
-        <div class="hl">Resultado do mês</div>
-        <div class="rv" id="rVal">—</div>
-        <div class="rs" id="rSub"></div>
-        <button id="btnEnt" class="hbtn" hidden>Registrar entrada</button>
-        <div class="fluxo">
-          <div class="fl"><span class="fic in"><i class="ti ti-arrow-down"></i></span><div><small>Entradas</small><b id="fEnt">R$ 0,00</b></div></div>
-          <div class="fl"><span class="fic out"><i class="ti ti-arrow-up"></i></span><div><small>Saídas</small><b id="fSai">R$ 0,00</b></div></div>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div class="dots" id="dots"><i class="on"></i><i></i></div>
-
-  <div class="stats">
-    <div class="stat" id="stDia"><small id="stDiaL">Posso gastar por dia</small><b id="stDiaV">—</b><div class="sub" id="stDiaH" hidden></div></div>
-    <div class="stat" id="stOrc"><small>Orçamento usado</small><b id="stOrcV">—</b><div class="mini"><i id="stOrcBar"></i></div></div>
-  </div>
-
   <h2>Categorias</h2>
   <div class="card" id="cats"></div>
 
@@ -114,7 +132,7 @@ async function buscarPeriodo(ini, fim){
   let tudo = [], de = 0;
   while(true){
     const r = await db.from('gastos')
-      .select('id,data,valor,categoria,meio_pagamento,descricao,parcelas,parcela_numero,titular')
+      .select('id,data,valor,categoria,meio_pagamento,descricao,parcelas,parcela_numero')
       .gte('data', ini).lt('data', fim)
       .order('data', {ascending: false}).order('criado_em', {ascending: false}).order('id')
       .range(de, de + 999);
@@ -215,10 +233,8 @@ function render(){
     $('btnEnt').hidden = false;
   }
 
-   const lDia = $('stDiaL'), vDia = $('stDiaV'), hDia = $('stDiaH'), vOrc = $('stOrcV'), bOrc = $('stOrcBar');
+  const lDia = $('stDiaL'), vDia = $('stDiaV'), vOrc = $('stOrcV'), bOrc = $('stOrcBar');
   vDia.className = '';
-  hDia.hidden = true;
-  hDia.className = 'sub';
   if(!(limite > 0)){
     lDia.textContent = 'Orçamento';
     vDia.textContent = 'Definir limite';
@@ -228,25 +244,16 @@ function render(){
     const p = totMes / limite * 100;
     vOrc.textContent = Math.round(p) + '%';
     bOrc.style.width = Math.min(p, 100) + '%';
-    bOrc.style.background = p > 100 ? '#dc2626' : p >= 80 ? '#d97706' : '#16a34a';
+    bOrc.style.background = p > 100 ? '#7f1d1d' : p >= 80 ? '#fde68a' : '#fff';
     if(ehAtual){
       lDia.textContent = 'Posso gastar por dia';
       const dia = +hj.slice(8, 10);
       const diasMes = new Date(+hj.slice(0, 4), +hj.slice(5, 7), 0).getDate();
       const R = diasMes - dia + 1;
       const H = soma(dados.filter(x => x.data === hj));
-      const restante = limite - totMes;
-      if(restante <= 0){ vDia.textContent = 'Esgotado'; vDia.className = 'neg'; }
-      else vDia.textContent = brl(restante / R);
-      const baseDia = (limite - (totMes - H)) / R;
-      const disp = baseDia - H;
-      hDia.hidden = false;
-      if(disp > 0.005){
-        hDia.textContent = 'Disponível hoje: ' + brl(disp);
-      } else {
-        hDia.className = 'sub neg';
-        hDia.textContent = 'Disponível hoje: ' + brl(0);
-      }
+      const A = limite - (totMes - H);
+      if(A <= 0){ vDia.textContent = 'Esgotado'; vDia.className = 'neg'; }
+      else vDia.textContent = brl(A / R);
     } else if(futuro){
       lDia.textContent = 'Posso gastar por dia';
       vDia.textContent = '—';
@@ -360,7 +367,6 @@ $('car').addEventListener('scroll', () => {
   document.querySelectorAll('#dots i').forEach((d, k) => d.classList.toggle('on', k === i));
 }, {passive: true});
 
-document.addEventListener('visibilitychange', () => { if(!document.hidden && uid) carregar(); });
 (async () => {
   const {data} = await db.auth.getSession();
   if(!data.session){ location.href = 'index.html'; return; }
