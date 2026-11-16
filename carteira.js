@@ -482,6 +482,7 @@ async function buscarMovs() {
     var c = await db.from('contas').select('*').order('nome');
     semContas = !!c.error;
     contas = c.error ? [] : c.data;
+    movs = await buscarMovs();
     desenhar();
     if (window.__cdRefresh) window.__cdRefresh();
   }
