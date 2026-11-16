@@ -784,16 +784,16 @@ async function buscarMovs() {
     }
   }
 
-  function abrirConta(c) {
+    function abrirConta(c) {
     if (g('ctOv')) return;
     if (semContas) return aviso('Rode primeiro o script do banco', true);
-    var ed = !!c && !c._novo;
+    var ed = !!c;
     var ov = folha(
       '<div class="cab"><strong>' + (ed ? 'Editar conta' : 'Nova conta') + '</strong><button type="button" id="ctX" aria-label="Fechar"><i class="ti ti-x"></i></button></div>' +
-      '<label for="ctNome">Nome</label><input id="ctNome" placeholder="Ex.: Conta Inter" autocomplete="off">' +
+      '<label for="ctNome">Nome</label><input id="ctNome" placeholder="Ex.: Inter" autocomplete="off">' +
       '<label for="ctTipo">Tipo</label><select id="ctTipo"></select>' +
-      '<label for="ctSaldo">Saldo atual (R$)</label><input id="ctSaldo" inputmode="decimal" autocomplete="off">' +
-      '<div class="nota">O saldo é informado por você e não muda sozinho. Atualize quando quiser.</div>' +
+      '<label for="ctSaldo">Saldo no banco agora (R$)</label><input id="ctSaldo" inputmode="decimal" autocomplete="off">' +
+      '<div class="nota">O saldo se atualiza sozinho com seus gastos e entradas. Se não bater com o banco, digite aqui o valor real para ajustar.</div>' +
       '<button type="button" class="btn" id="ctSalvar">Salvar</button>' +
       (ed ? '<button type="button" class="btn sec" id="ctApagar">Apagar conta</button>' : '')
     );
@@ -807,17 +807,19 @@ async function buscarMovs() {
     if (ed) {
       g('ctNome').value = c.nome;
       tipo.value = c.tipo;
-      g('ctSaldo').value = String(c.saldo).replace('.', ',');
-    } else if (c && c._novo) {
-      g('ctNome').value = c.nome;
-      tipo.value = c.tipo;
+      g('ctSaldo').value = String(saldoCalc(c)).replace('.', ',');
     }
     g('ctSalvar').onclick = async function () {
       var nome = g('ctNome').value.trim();
       if (!nome) return aviso('Informe o nome da conta', true);
       var saldo = numero(g('ctSaldo').value);
-      var p = {nome: nome, tipo: tipo.value, saldo: saldo};
-      if (!ed || Number(c.saldo) !== saldo) p.atualizado_em = isoL(new Date());
+      var p = {nome: nome, tipo: tipo.value};
+      var mudou = !ed || Math.round(saldo * 100) !== Math.round(saldoCalc(c) * 100);
+      if (mudou) {
+        p.saldo = saldo;
+        p.base_em = new Date().toISOString();
+        p.atualizado_em = isoL(new Date());
+      }
       g('ctSalvar').disabled = true;
       var res = ed
         ? await db.from('contas').update(p).eq('id', c.id)
