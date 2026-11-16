@@ -106,6 +106,7 @@
       '<button type="button" class="btn" id="enSalvar">Salvar entrada</button>';
     g('enData').value = hojeISO();
     opcoes(g('enCat'), CATS, 'Salário');
+    opcoesConta(g('enConta'), nomes, ultimaConta());
     g('enRep').checked = !!repetir;
     g('enX').onclick = function () { f.ov.remove(); };
     g('enSalvar').onclick = async function () {
