@@ -168,7 +168,7 @@
       var btn = g('enSalvar');
       btn.disabled = true;
       var res = await db.from('entradas').update({
-        valor: v, data: g('enData').value, categoria: g('enCat').value,
+        valor: v, data: g('enData').value, categoria: g('enCat').value, conta: g('enConta').value || null,
         descricao: g('enDesc').value.trim() || null
       }).eq('id', id);
       btn.disabled = false;
