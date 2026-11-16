@@ -89,7 +89,50 @@
   var CORES_B = ['#2563eb', '#7c3aed', '#db2777', '#ea580c', '#16a34a', '#0891b2', '#ca8a04', '#475569'];
   var TIPOS = {corrente: 'Conta corrente', poupanca: 'Poupança', investimento: 'Investimentos', dinheiro: 'Dinheiro em mãos', outra: 'Outra conta'};
 
-  var meios = [], contas = [], gastosCartao = [], pagas = {};
+  var meios = [], contas = [], gastosCartao = [], movs = [];
+
+function chaveConta(n) {
+  return (n || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/^(cartao|conta)\s+/, '').trim();
+}
+
+function saldoCalc(c) {
+  var t = Number(c.saldo) || 0;
+  if (!c.base_em) return t;
+  var k = chaveConta(c.nome), bt = new Date(c.base_em), bd = isoL(bt), hj = isoL(new Date());
+  movs.forEach(function (x) {
+    if (x.k !== k || x.data > hj) return;
+    if (!(new Date(x.criado_em) > bt || x.data > bd)) return;
+    t += x.e ? x.valor : -x.valor;
+  });
+  return Math.round(t * 100) / 100;
+}
+
+async function buscarMovs() {
+  if (semContas) return [];
+  var bases = contas.filter(function (c) { return c.base_em; }).map(function (c) { return new Date(c.base_em); });
+  if (!bases.length) return [];
+  var min = new Date(Math.min.apply(null, bases));
+  var filtro = 'criado_em.gt.' + min.toISOString() + ',data.gt.' + isoL(min);
+  var out = [], de = 0, r;
+  while (true) {
+    r = await db.from('gastos').select('data,valor,meio_pagamento,criado_em')
+      .not('meio_pagamento', 'ilike', 'cart%').or(filtro).order('id').range(de, de + 999);
+    if (r.error) break;
+    r.data.forEach(function (x) { out.push({k: chaveConta(x.meio_pagamento), data: x.data, valor: Number(x.valor), criado_em: x.criado_em, e: false}); });
+    if (r.data.length < 1000) break;
+    de += 1000;
+  }
+  de = 0;
+  while (true) {
+    r = await db.from('entradas').select('data,valor,conta,criado_em')
+      .not('conta', 'is', null).or(filtro).order('id').range(de, de + 999);
+    if (r.error) break;
+    r.data.forEach(function (x) { out.push({k: chaveConta(x.conta), data: x.data, valor: Number(x.valor), criado_em: x.criado_em, e: true}); });
+    if (r.data.length < 1000) break;
+    de += 1000;
+  }
+  return out;
+}
   var semLimite = false, semContas = false, semFaturas = false, timer = null;
 
   function g(id) { return document.getElementById(id); }
