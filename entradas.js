@@ -122,7 +122,7 @@
       btn.disabled = true;
       if (g('enRep').checked) {
         var fx = await db.from('entradas_fixas')
-          .insert({descricao: desc || cat, valor: v, categoria: cat, dia: +data.slice(8, 10)})
+          .insert({descricao: desc || cat, valor: v, categoria: cat, dia: +data.slice(8, 10), conta: reg.conta})
           .select('id').single();
         if (fx.error) { btn.disabled = false; return aviso('Erro: ' + fx.error.message, true); }
         reg.recorrente_id = fx.data.id;
