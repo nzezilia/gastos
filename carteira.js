@@ -395,7 +395,7 @@ async function buscarMovs() {
       var s1 = document.createElement('small');
       s1.textContent = 'Total nas contas';
       var b1 = document.createElement('b');
-      b1.textContent = moeda(contas.reduce(function (s, c) { return s + Number(c.saldo); }, 0));
+      b1.textContent = moeda(contas.reduce(function (s, c) { return s + saldoCalc(c); }, 0));
       tot.appendChild(s1);
       tot.appendChild(b1);
     }
