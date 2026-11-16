@@ -116,7 +116,8 @@
       if (!data) return aviso('Informe a data', true);
       var cat = g('enCat').value;
       var desc = g('enDesc').value.trim();
-      var reg = {data: data, valor: v, categoria: cat, descricao: desc || null};
+      var reg = {data: data, valor: v, categoria: cat, descricao: desc || null, conta: g('enConta').value || null};
+      try { localStorage.setItem('contaEntrada', g('enConta').value); } catch (e) {}
       var btn = g('enSalvar');
       btn.disabled = true;
       if (g('enRep').checked) {
