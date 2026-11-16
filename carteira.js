@@ -421,11 +421,12 @@ async function buscarMovs() {
       var l3 = document.createElement('div');
       l3.className = 'l3';
       var esq = document.createElement('span');
-      var dd = c.atualizado_em ? paraDataBr(c.atualizado_em) : '';
-      esq.textContent = c._novo ? 'Saldo não informado' : 'Saldo atual' + (dd ? ' · atualizado em ' + dd : '');
+      var dd = c.base_em ? paraDataBr(isoL(new Date(c.base_em))) : '';
+      esq.textContent = 'Saldo atual' + (dd ? ' · ajustado em ' + dd : '');
+      var sc = saldoCalc(c);
       var bv = document.createElement('b');
-      bv.textContent = c._novo ? 'Informar saldo' : moeda(c.saldo);
-      if (!c._novo && Number(c.saldo) < 0) bv.className = 'neg';
+      bv.textContent = moeda(sc);
+      if (sc < 0) bv.className = 'neg';
       l3.appendChild(esq);
       l3.appendChild(bv);
       el.appendChild(l3);
