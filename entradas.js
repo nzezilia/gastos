@@ -100,6 +100,7 @@
       '<label for="enValor">Valor (R$)</label><input id="enValor" class="big" inputmode="decimal" placeholder="0,00" autocomplete="off">' +
       '<label for="enData">Data</label><input id="enData" type="date">' +
       '<label for="enCat">Categoria</label><select id="enCat"></select>' +
+      '<label for="enConta">Conta que recebeu</label><select id="enConta"></select>' +
       '<label for="enDesc">Descrição (opcional)</label><input id="enDesc" autocomplete="off">' +
       '<label class="enchk"><input type="checkbox" id="enRep"> Repetir todo mês (ex.: salário)</label>' +
       '<button type="button" class="btn" id="enSalvar">Salvar entrada</button>';
