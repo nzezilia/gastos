@@ -158,6 +158,7 @@
     var cats = CATS.slice();
     if (cats.indexOf(e.categoria) < 0) cats.push(e.categoria);
     opcoes(g('enCat'), cats, e.categoria);
+    opcoesConta(g('enConta'), await nomesContas(), e.conta);
     g('enDesc').value = e.descricao || '';
     g('enX').onclick = function () { f.ov.remove(); };
     g('enSalvar').onclick = async function () {
