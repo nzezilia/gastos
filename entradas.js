@@ -66,7 +66,33 @@
     sel.value = atual;
   }
 
-  window.abrirNovaEntrada = function (aoSalvar, repetir) {
+    async function nomesContas() {
+    var r = await db.from('contas').select('nome').order('nome');
+    return r.error ? [] : r.data.map(function (x) { return x.nome; });
+  }
+  function opcoesConta(sel, nomes, atual) {
+    var lista = nomes.slice();
+    if (atual && lista.indexOf(atual) < 0) lista.push(atual);
+    sel.innerHTML = '';
+    var o0 = document.createElement('option');
+    o0.value = '';
+    o0.textContent = 'Sem conta (não mexe em saldo)';
+    sel.appendChild(o0);
+    lista.forEach(function (n) {
+      var o = document.createElement('option');
+      o.value = n;
+      o.textContent = n;
+      sel.appendChild(o);
+    });
+    sel.value = atual || '';
+  }
+  function ultimaConta() {
+    try { return localStorage.getItem('contaEntrada') || ''; } catch (e) { return ''; }
+  }
+
+  window.abrirNovaEntrada = async function (aoSalvar, repetir) {
+    if (g('enOv')) return;
+    var nomes = await nomesContas();
     if (g('enOv')) return;
     var f = folha();
     f.sh.innerHTML =
