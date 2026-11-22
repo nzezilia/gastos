@@ -390,6 +390,8 @@ function renderCalendario(el){
 }
 
 /* ---------- Quanto posso gastar por dia (só no modo Data da compra) ---------- */
+/* O valor do dia é fixo durante o dia: desconta só o que você lança hoje por conta própria.
+   Parcelas (2ª em diante) e despesas fixas já estavam previstas no mês e entram no cálculo. */
 function renderPorDia(totMes){
   const card = $('pdCard');
   const hj = hoje();
