@@ -250,8 +250,8 @@ function render(){
       const dia = +hj.slice(8, 10);
       const diasMes = new Date(+hj.slice(0, 4), +hj.slice(5, 7), 0).getDate();
       const R = diasMes - dia + 1;
-      const H = soma(dados.filter(x => x.data === hj));
-      const A = limite - totMes;
+      const H = soma(dados.filter(x => x.data === hj && x.tipo !== 'fixo' && !(x.parcela_numero > 1)));
+      const A = limite - (totMes - H);
       if(A <= 0){ vDia.textContent = 'Esgotado'; vDia.className = 'neg'; }
       else vDia.textContent = brl(A / R);
     } else if(futuro){
