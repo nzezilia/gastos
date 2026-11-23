@@ -149,6 +149,7 @@
       '<label for="enValor">Valor (R$)</label><input id="enValor" class="big" inputmode="decimal" autocomplete="off">' +
       '<label for="enData">Data</label><input id="enData" type="date">' +
       '<label for="enCat">Categoria</label><select id="enCat"></select>' +
+      '<label for="enConta">Conta que recebeu</label><select id="enConta"></select>' +
       '<label for="enDesc">Descrição</label><input id="enDesc" autocomplete="off">' +
       '<button type="button" class="btn" id="enSalvar">Salvar alterações</button>' +
       '<button type="button" class="btn sec" id="enApagar">Apagar entrada</button>';
