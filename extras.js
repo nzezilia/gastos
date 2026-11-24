@@ -6,7 +6,7 @@
   var pag = (location.pathname.split('/').pop() || 'index.html').toLowerCase();
   var MAPA = {
     'resumo.html': ['dicas.js', 'calendario.js'],
-    'inicio.html': ['calendario.js', 'carteira.js', 'abas.js']
+    'inicio.html': ['calendario.js', 'carteira.js', 'abas.js', 'credito.js']
   };
   ['logos.js'].concat(MAPA[pag] || []).forEach(function (arquivo) {
     var s = document.createElement('script');
