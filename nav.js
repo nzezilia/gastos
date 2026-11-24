@@ -23,7 +23,7 @@
     var v = c.escuro;
     document.documentElement.style.setProperty('--pri', v);
     var meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute('content', v);
+    if (meta) meta.setAttribute('content', '#000000');
   }
   window.aplicarCor = aplicarCor;
   if (mq.addEventListener) mq.addEventListener('change', aplicarCor);
