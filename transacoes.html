@@ -125,7 +125,7 @@ async function carregar(){
     de += 1000;
   }
   const re = await db.from('entradas')
-    .select('id,data,valor,categoria,descricao,recorrente_id,criado_em')
+    .select('id,data,valor,categoria,descricao,recorrente_id,criado_em,conta')
     .gte('data', mes).lt('data', fim)
     .order('data', {ascending: false}).order('criado_em', {ascending: false});
   if(t !== tok) return;
