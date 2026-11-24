@@ -20,7 +20,7 @@
   function aplicarCor() {
     var id = corSalva();
     var c = PALETA.filter(function (x) { return x.id === id; })[0] || PALETA[0];
-    var v = mq.matches ? c.escuro : c.claro;
+    var v = c.escuro;
     document.documentElement.style.setProperty('--pri', v);
     var meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.setAttribute('content', v);
