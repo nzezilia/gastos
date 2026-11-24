@@ -198,7 +198,7 @@
         var b = document.createElement('button');
         b.type = 'button';
         b.className = 'sw' + (c.id === atual ? ' on' : '');
-        b.style.background = c.claro;
+        b.style.background = c.escuro;
         b.setAttribute('aria-label', c.nome);
         if (c.id === atual) {
           nomeAtual = c.nome;
