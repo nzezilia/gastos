@@ -133,8 +133,9 @@ function addMeses(s, n){
 }
 const brl = v => Number(v).toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
 function num(s){
-  s = (s || '').trim();
-  s = s.includes(',') ? s.replace(/\./g,'').replace(',','.') : s;
+  s = (s || '').trim().replace(/\s|R\$/g, '');
+  if(s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+  else if(/^\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, '');
   const n = parseFloat(s);
   return isNaN(n) ? 0 : n;
 }
@@ -407,6 +408,7 @@ async function salvar(){
   const cents = Math.round(v * 100);
   const base = Math.floor(cents / n);
   const resto = cents - base * n;
+  const compra = n > 1 ? crypto.randomUUID() : null;
   const linhas = [];
   for(let i = 1; i <= n; i++){
     linhas.push({
@@ -418,6 +420,7 @@ async function salvar(){
       meio_pagamento: meio,
       parcelas: n,
       parcela_numero: i,
+      compra_id: compra,
       recompensa: i === 1 ? rec : 0,
             origem: 'manual',
       ...(quem ? {titular: quem} : {})
@@ -425,7 +428,12 @@ async function salvar(){
   }
   $('btnSalvar').disabled = true;
   if(!(await garantirMeio(meio))){ $('btnSalvar').disabled = false; return; }
-  const {error} = await db.from('gastos').insert(linhas);
+  let {error} = await db.from('gastos').insert(linhas);
+  /* Enquanto a coluna compra_id não existir no banco, salva sem ela */
+  if(error && /compra_id/.test(error.message)){
+    linhas.forEach(x => { delete x.compra_id; });
+    ({error} = await db.from('gastos').insert(linhas));
+  }
   $('btnSalvar').disabled = false;
   if(error) return toast('Erro: ' + error.message, true);
   toast('Salvo ✓');

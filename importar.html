@@ -379,19 +379,25 @@ async function importar(){
   const sel = linhas.filter(l => l.marcar);
   if(!sel.length) return toast('Nenhuma compra selecionada', true);
   const comFut = $('futuras').checked;
-  const mk = (l, k, d) => ({
-    data: d, valor: l.valor, categoria: l.cat, tipo: 'variavel', descricao: l.desc,
+  const mk = (l, k, d, cid) => ({
+    compra_id: cid, data: d, valor: l.valor, categoria: l.cat, tipo: 'variavel', descricao: l.desc,
     meio_pagamento: meio, parcelas: l.parcelas, parcela_numero: k, recompensa: 0, origem: 'fatura'
   });
   const rows = [];
   sel.forEach(l => {
-    rows.push(mk(l, l.parcela, l.data));
+    const cid = l.parcelas > 1 ? crypto.randomUUID() : null;
+    rows.push(mk(l, l.parcela, l.data, cid));
     if(comFut && l.parcelas > l.parcela){
-      for(let k = l.parcela + 1; k <= l.parcelas; k++) rows.push(mk(l, k, addMeses(l.data, k - l.parcela)));
+      for(let k = l.parcela + 1; k <= l.parcelas; k++) rows.push(mk(l, k, addMeses(l.data, k - l.parcela), cid));
     }
   });
   $('btnImportar').disabled = true;
-  const {error} = await db.from('gastos').insert(rows);
+  let {error} = await db.from('gastos').insert(rows);
+  /* Enquanto a coluna compra_id não existir no banco, salva sem ela */
+  if(error && /compra_id/.test(error.message)){
+    rows.forEach(x => { delete x.compra_id; });
+    ({error} = await db.from('gastos').insert(rows));
+  }
   $('btnImportar').disabled = false;
   if(error) return toast('Erro: ' + error.message, true);
   const fut = rows.length - sel.length;
