@@ -144,8 +144,9 @@ async function buscarMovs() {
   }
   function moeda(v) { return Number(v).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'}); }
   function numero(s) {
-    s = (s || '').trim();
-    s = s.indexOf(',') >= 0 ? s.replace(/\./g, '').replace(',', '.') : s;
+    s = (s || '').trim().replace(/\s|R\$/g, '');
+    if (s.indexOf(',') >= 0) s = s.replace(/\./g, '').replace(',', '.');
+    else if (/^\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, '');
     var n = parseFloat(s);
     return isNaN(n) ? 0 : n;
   }
