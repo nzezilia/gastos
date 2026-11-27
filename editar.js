@@ -69,7 +69,8 @@
       '<label for="edDesc">Descrição</label><input id="edDesc" autocomplete="off">' +
       '<label for="edTipo">Tipo</label><select id="edTipo"><option value="variavel">Variável</option><option value="fixo">Fixo</option></select>' +
       '<button type="button" class="btn" id="edSalvar">Salvar alterações</button>' +
-      '<button type="button" class="btn sec perigo" id="edApagar">Apagar lançamento</button>';
+      '<button type="button" class="btn sec perigo" id="edApagar">Apagar lançamento</button>' +
+      '<button type="button" class="btn sec perigo" id="edApagarTodas" style="display:none">Apagar todas as parcelas</button>';
     document.body.appendChild(ov);
 
     function $(i) { return document.getElementById(i); }
@@ -125,5 +126,18 @@
       aviso('Apagado');
       if (aoSalvar) aoSalvar();
     };
+
+    /* Compra parcelada: apaga todas as parcelas de uma vez (precisa da coluna compra_id) */
+    if (g.compra_id && g.parcelas > 1) {
+      $('edApagarTodas').style.display = '';
+      $('edApagarTodas').onclick = async function () {
+        if (!confirm('Apagar as parcelas desta compra (' + g.parcelas + 'x)?')) return;
+        var res = await db.from('gastos').delete().eq('compra_id', g.compra_id);
+        if (res.error) return aviso('Erro: ' + res.error.message, true);
+        fechar();
+        aviso('Compra apagada');
+        if (aoSalvar) aoSalvar();
+      };
+    }
   };
 })();
