@@ -317,16 +317,40 @@ function mostrarUltimo(){
   if(s) $('ultimo').textContent = 'Último backup neste aparelho: ' + new Date(s).toLocaleString('pt-BR');
 }
 
+/* Todas as tabelas do app. Se alguma não existir no banco, o backup sai sem ela e o aviso diz qual. */
+const TABELAS_BACKUP = [
+  ['gastos', ['data', 'id']],
+  ['entradas', ['data', 'id']],
+  ['entradas_fixas', ['id']],
+  ['recorrentes', ['descricao']],
+  ['meios_pagamento', ['nome']],
+  ['contas', ['id']],
+  ['cartoes_adicionais', ['titular']],
+  ['faturas_pagas', ['mes_fatura']],
+  ['orcamento', []],
+  ['orcamentos_cat', ['categoria']],
+  ['metas', ['id']]
+];
+
 $('btnJson').onclick = async () => {
   $('btnJson').disabled = true;
   try {
-    const gastos = await todos('gastos', ['data', 'id']);
-    const meios = await todos('meios_pagamento', ['nome']);
-    const fixos = await todos('recorrentes', ['descricao']);
-    const o = await db.from('orcamento').select('*');
-    const pacote = {exportado_em: new Date().toISOString(), meios_pagamento: meios, orcamento: o.data || [], recorrentes: fixos, gastos: gastos};
+    const pacote = {exportado_em: new Date().toISOString(), versao: 2};
+    const faltaram = [];
+    for(const [tabela, ordens] of TABELAS_BACKUP){
+      try { pacote[tabela] = await todos(tabela, ordens); }
+      catch(e){
+        if(tabela === 'gastos') throw e;
+        faltaram.push(tabela);
+      }
+    }
     const ok = await entregar('backup-gastos-' + hoje() + '.json', 'application/json', JSON.stringify(pacote, null, 1));
-    if(ok){ marcar(); toast('Backup pronto: ' + gastos.length + ' lançamentos'); }
+    if(ok){
+      marcar();
+      const n = t => (pacote[t] || []).length;
+      toast('Backup pronto: ' + n('gastos') + ' gastos e ' + n('entradas') + ' entradas' +
+        (faltaram.length ? '. Ficaram de fora: ' + faltaram.join(', ') : ''), faltaram.length > 0);
+    }
   } catch(e){ toast('Erro: ' + (e.message || e), true); }
   $('btnJson').disabled = false;
 };
