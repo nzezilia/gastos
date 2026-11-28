@@ -90,7 +90,13 @@
   function slug(n) {
     return n.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/^(cartao|conta)\s+/, '').replace(/[^a-z0-9]/g, '');
   }
-  function marca(nome) { return MARCAS[slug(nome)] || [corDe(nome), '#ffffff']; }
+  function marca(nome) {
+    if (window.CorCartao && window.CorCartao.escolhida('meios_pagamento', nome)) {
+      var c = window.CorCartao.cor('meios_pagamento', nome);
+      return [c.fundo, c.texto];
+    }
+    return MARCAS[slug(nome)] || [corDe(nome), '#ffffff'];
+  }
   function curto(nome) { return nome.replace(/^cart[aã]o\s+/i, ''); }
   function inicial(nome) {
     var p = curto(nome).trim().split(/\s+/).filter(Boolean);
@@ -157,6 +163,9 @@
       if (nn && nn.textContent === nome) { cs[i].click(); return; }
     }
   }
+
+  window.abrirCartao7 = abrirDetalhe;
+  if (window.CorCartao) window.CorCartao.aoMudar(function () { if (root) desenhar(); });
 
   /* ---------- dados ---------- */
   async function carregar() {
@@ -277,6 +286,12 @@
     add.onclick = function () { var a = document.getElementById('ccAdd'); if (a) a.click(); };
     carEl.appendChild(add);
     carWrap.appendChild(carEl);
+    /* resumo dos cartões para a pilha do Início (pilha.js) */
+    window.CartoesInfo = meios.map(function (m) {
+      var bM = mesFat(hoje0, m), t = totalFat(m, bM), dd = datasFat(m, bM), lm = Number(m.limite) || 0;
+      return {nome: m.nome, fatura: t, vence: dd.venceD.getDate(), status: statusFat(m, bM, t).t, disponivel: lm > 0 ? lm - usadoCartao(m) : null};
+    });
+    document.dispatchEvent(new Event('cartoes7'));
     carEl.scrollLeft = prev;
     carEl.addEventListener('scroll', function () {
       var w = carEl.firstChild ? carEl.firstChild.offsetWidth + 12 : 1;
@@ -307,6 +322,8 @@
     fatEl.innerHTML = '';
     if (!meios.length) return;
     var m = cartaoSel(), mc = marca(m.nome), cor = mc[0];
+    /* cartão escuro (ex.: Black) some no fundo escuro: clareia só as barras */
+    var corBarra = window.CorCartao && window.CorCartao.texto(cor) === '#ffffff' && /^#[0-3][0-9a-f][0-3][0-9a-f][0-3][0-9a-f]$/i.test(cor) ? 'color-mix(in srgb,' + cor + ' 45%,#fff)' : cor;
     var baseM = mesFat(isoD(new Date()), m);
     if (!selM) selM = baseM;
 
@@ -327,7 +344,7 @@
       b.appendChild(el('span', 'n vv', tots[i] > 0 ? String(Math.round(tots[i])) : ''));
       var c = el('span', 'c');
       c.style.height = Math.max(4, tots[i] / max * 110) + 'px';
-      c.style.background = cor;
+      c.style.background = corBarra;
       b.appendChild(c);
       var lab = el('span', 'm', nomeMes(M + '-01', 'short'));
       if (M.slice(0, 4) !== baseM.slice(0, 4)) {
