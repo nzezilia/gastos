@@ -1,8 +1,8 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
 @import url('https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css');
 
-html:root{color-scheme:dark;--bg:#0b0d12;--card:#151922;--card2:#1c2130;--txt:#eef1f7;--mut:#8b93a7;--pri:#6d8bff;--bd:#232836;--err:#f87171;--ok:#34d399;--warn:#fbbf24;--tint:color-mix(in srgb,var(--pri) 16%,transparent);--sombra:none}
-html body{font-family:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums;padding-bottom:calc(120px + env(safe-area-inset-bottom))}
+html:root{color-scheme:dark;--bg:#130d2a;--card:rgba(255,255,255,.08);--card2:rgba(255,255,255,.14);--sheet:rgba(30,22,64,.94);--txt:#ffffff;--mut:#b9b2d6;--pri:#8b7bff;--bd:rgba(255,255,255,.14);--err:#ff8fa3;--ok:#6ee7b7;--warn:#fcd34d;--tint:color-mix(in srgb,var(--pri) 22%,transparent);--sombra:none;--vidro:blur(18px) saturate(140%);--aurora:radial-gradient(55% 38% at 8% 4%,color-mix(in srgb,#ff7a59 70%,transparent) 0,transparent 70%),radial-gradient(65% 42% at 100% 30%,color-mix(in srgb,var(--pri) 80%,transparent) 0,transparent 70%),radial-gradient(70% 45% at 10% 92%,color-mix(in srgb,#00b3a6 65%,transparent) 0,transparent 70%),#130d2a}
+html body{font-family:'Manrope','Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums;padding-bottom:calc(120px + env(safe-area-inset-bottom))}
 html body h1{font-size:28px;font-weight:700;letter-spacing:-.02em;margin:24px 0 16px}
 html body h2{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.09em;color:var(--mut);margin:28px 4px 10px}
 html body .card{border-radius:20px;padding:18px;box-shadow:var(--sombra)}
@@ -42,3 +42,24 @@ html body #nav a.on i{background:var(--tint)}
 html body #nav a.fab{flex:0 0 auto;width:58px;height:58px;border-radius:50%;background:var(--pri);color:#fff;justify-content:center;margin-top:-34px;border:4px solid var(--bg);box-shadow:0 10px 22px -8px var(--pri)}
 html body #nav a.fab i{font-size:28px;padding:0;background:none}
 html body:has(#login:not([hidden])) #nav{display:none}
+
+/* ===== Visual Vidro: fundo de manchas coloridas e cartões de vidro fosco ===== */
+html body{background:#130d2a}
+html body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--aurora);pointer-events:none}
+html body .card,html body .stat,html body .chip,html body #nav,html body .busca input,html body input,html body select,html body textarea{backdrop-filter:var(--vidro);-webkit-backdrop-filter:var(--vidro)}
+html body .card,html body .stat{border-color:var(--bd);border-radius:22px}
+html body .chip{border-color:var(--bd)}
+html body .chip.on{background:#fff;border-color:#fff;color:#22164a;box-shadow:none}
+html body .btn{border-radius:999px;background:#fff;color:#22164a;box-shadow:0 10px 24px -12px rgba(0,0,0,.6)}
+html body .btn.sec{background:var(--card);color:var(--txt)}
+html body #nav{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.2);border-radius:999px;box-shadow:0 10px 30px -12px rgba(0,0,0,.6)}
+html body #nav a{color:rgba(255,255,255,.62)}
+html body #nav a.on{color:#fff}
+html body #nav a.on i{background:rgba(255,255,255,.16)}
+html body #nav a.fab{background:#fff;color:#22164a;border-color:transparent;box-shadow:0 10px 24px -10px rgba(0,0,0,.6)}
+html body h2{color:rgba(255,255,255,.75)}
+html body :is(#ctOv,#edOv,#enOv,#fabOv,#plOv){background:rgba(8,4,24,.45);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+html body :is(#ctOv,#edOv,#enOv,#fabOv,#plOv)>*{background:var(--sheet)!important;border-color:var(--bd)!important;backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px)}
+html body #cdOv{background:var(--aurora)}
+html body #toast{background:rgba(30,22,64,.95);border:1px solid var(--bd)}
+html body .big{backdrop-filter:none;-webkit-backdrop-filter:none;background:transparent}

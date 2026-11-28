@@ -3,11 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0b0d12">
+<meta name="theme-color" content="#130d2a">
 <title>Gastos</title>
 <link rel="stylesheet" href="estilo.css">
 <script src="nav.js" defer></script>
 <script src="editar.js" defer></script>
+<script src="cores.js"></script>
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -44,6 +45,11 @@ summary{cursor:pointer;color:var(--pri);margin-top:14px}
 .item{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--bd)}
 .item small{color:var(--mut);display:block}
 .item .dir{font-weight:600;white-space:nowrap}
+.cartsel{position:relative;overflow:hidden;border-radius:20px;padding:16px 18px;height:118px;display:flex;flex-direction:column;justify-content:space-between;border:1px solid rgba(255,255,255,.28);margin-bottom:4px}
+.cartsel::after{content:"";position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.22),rgba(255,255,255,0) 55%);pointer-events:none}
+.cartsel small{display:block;font-size:12px;opacity:.8}
+.cartsel b{font-size:20px;letter-spacing:-.01em}
+.cartsel .cs1{display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;opacity:.9}
 #toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#111827;color:#fff;padding:10px 16px;border-radius:10px;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90%}
 #toast.show{opacity:1}
 #toast.erro{background:var(--err)}
@@ -70,13 +76,14 @@ summary{cursor:pointer;color:var(--pri);margin-top:14px}
     <button id="btnSair" class="link">Sair</button>
   </div>
   <div class="card">
-    <label for="valor">Valor (R$)</label>
-    <input id="valor" class="big" inputmode="decimal" placeholder="0,00" autocomplete="off">
+    <div id="cartaoSel" class="cartsel" hidden></div>
     <label>Conta</label>
     <div id="bancos" class="chips"></div>
     <label>Pagamento</label>
     <div id="formas" class="chips"></div>
     <div id="quemBox" hidden><label>Quem usou</label><div id="quem" class="chips"></div></div>
+    <label for="valor">Valor (R$)</label>
+    <input id="valor" class="big" inputmode="decimal" placeholder="0,00" autocomplete="off">
     <label>Categoria</label>
     <div id="cats" class="chips"></div>
     <label for="desc">Descrição (opcional)</label>
@@ -241,8 +248,27 @@ function desenharQuem(){
   if(!lista.includes(quem)) quem = '';
   chips($('quem'), ['Titular'].concat(lista), quem || 'Titular', n => { quem = n === 'Titular' ? '' : n; });
 }
+function desenharCartaoSel(){
+  const box = $('cartaoSel');
+  if(!banco || !window.CorCartao){ box.hidden = true; return; }
+  const cred = forma === 'credito';
+  const c = banco === 'Dinheiro' ? {fundo: '#15803d', texto: '#ffffff'}
+    : CorCartao.cor(cred ? 'meios_pagamento' : 'contas', cred ? 'Cartão ' + banco : banco);
+  box.hidden = false;
+  box.style.background = 'linear-gradient(135deg,' + c.fundo + ',color-mix(in srgb,' + c.fundo + ' 70%,#000))';
+  box.style.color = c.texto;
+  box.innerHTML = '';
+  const l1 = document.createElement('div');
+  l1.className = 'cs1';
+  const a = document.createElement('span'); a.textContent = 'Novo gasto em';
+  const t = document.createElement('span'); t.textContent = banco === 'Dinheiro' ? 'Dinheiro em mãos' : (cred ? 'Crédito' : 'Saldo da conta');
+  l1.appendChild(a); l1.appendChild(t);
+  const nm = document.createElement('b'); nm.textContent = banco;
+  box.appendChild(l1); box.appendChild(nm);
+}
 function desenharFormas(){
   desenharQuem();
+  desenharCartaoSel();
   const box = $('formas');
   box.innerHTML = '';
   if(!banco) return;
@@ -454,6 +480,7 @@ async function mostrar(){
   if(logado){
     $('data').value = hoje();
     desenharCats();
+    if(window.CorCartao){ CorCartao.aoMudar(desenharCartaoSel); CorCartao.carregar(db); }
     await carregarBancos();
     resumo();
     carregarHistorico();

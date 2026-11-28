@@ -52,9 +52,9 @@
   var tab = 'conta';
   var barra = el('div', 'abas7');
   var bConta = el('button'); bConta.type = 'button';
-  bConta.innerHTML = '<i class="ti ti-building-bank"></i>Conta';
+  bConta.innerHTML = '<i class="ti ti-layout-dashboard"></i>Resumo';
   var bCred = el('button'); bCred.type = 'button';
-  bCred.innerHTML = '<i class="ti ti-credit-card"></i>Crédito';
+  bCred.innerHTML = '<i class="ti ti-credit-card"></i>Cartões';
   barra.appendChild(bConta); barra.appendChild(bCred);
 
   var hdr = wrap.querySelector('.hdr');

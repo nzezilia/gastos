@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0b0d12">
+<meta name="theme-color" content="#130d2a">
 <title>Início</title>
 <link rel="stylesheet" href="estilo.css">
 <link rel="stylesheet" href="componentes.css">
@@ -21,6 +21,13 @@
 .car .slide{flex:0 0 100%;scroll-snap-align:center;display:flex}
 .car .hero{width:100%;position:relative;display:flex;flex-direction:column}
 .car .hero .hrow{margin-top:auto}
+.hero .ritmo{display:block;margin-top:10px}
+.hero #hSpark{display:block;width:100%;height:84px;overflow:visible}
+.rleg{display:flex;gap:14px;font-size:11px;opacity:.85;margin-top:6px}
+.rleg span{display:inline-flex;align-items:center;gap:6px}
+.rleg b{font-weight:600}
+.rleg i{width:14px;height:0;border-top:2.5px solid #fff;display:inline-block}
+.rleg i.pv{border-top:2px dashed rgba(255,255,255,.6)}
 .hero .nx{position:absolute;top:16px;right:16px;font-size:20px;opacity:.7;cursor:pointer}
 .hero.res .nx{right:auto;left:auto;right:16px}
 .dots{display:flex;justify-content:center;gap:6px;margin-top:10px}
@@ -55,9 +62,10 @@
         <i class="ti ti-chevron-right nx" id="nx" aria-hidden="true"></i>
         <div class="hl">Gasto do mês</div>
         <div class="hv" id="hTotal">R$ 0,00</div>
-        <div class="hrow">
-          <div class="hc" id="hCmp"></div>
-          <svg id="hSpark" width="120" height="40" viewBox="0 0 120 40" role="img" aria-label="Gastos dos últimos seis meses"></svg>
+        <div class="hc" id="hCmp"></div>
+        <div class="hrow ritmo">
+          <svg id="hSpark" viewBox="0 0 300 90" preserveAspectRatio="none" role="img" aria-label="Gasto acumulado do mês comparado ao mês anterior"></svg>
+          <div class="rleg"><span><i></i><b id="rlA">este mês</b></span><span><i class="pv"></i><b id="rlB">mês anterior</b></span></div>
         </div>
       </div>
     </div>
@@ -131,27 +139,36 @@ async function buscarEntradas(ini, fim){
   return r.error ? [] : r.data;
 }
 
-function desenharSpark(vals){
+/* Ritmo do mês: gasto acumulado dia a dia, comparado ao mês anterior */
+function acumulado(rows, ym, ateDia){
+  const dias = new Date(+ym.slice(0, 4), +ym.slice(5, 7), 0).getDate();
+  const porDia = new Array(dias + 1).fill(0);
+  rows.forEach(x => { if(x.data.slice(0, 7) === ym) porDia[+x.data.slice(8, 10)] += Number(x.valor); });
+  const out = [0];
+  for(let d = 1; d <= Math.min(dias, ateDia || dias); d++) out.push(out[d - 1] + porDia[d]);
+  return {pts: out, dias};
+}
+function desenharRitmo(ym, ymPrev, ateDia){
   const svg = $('hSpark');
   svg.innerHTML = '';
-  const max = Math.max(...vals, 1), W = 120, H = 40, P = 5;
-  const pts = vals.map((v, i) => [P + i * (W - 2 * P) / (vals.length - 1), H - P - (v / max) * (H - 2 * P)]);
+  const A = acumulado(janela, ym, ateDia), B = acumulado(janela, ymPrev);
+  const W = 300, H = 90, P = 4, dmax = Math.max(A.dias, B.dias);
+  const max = Math.max(A.pts[A.pts.length - 1], B.pts[B.pts.length - 1], 1);
+  const X = d => P + d * (W - 2 * P) / dmax, Y = v => H - P - v / max * (H - 2 * P);
   const NS = 'http://www.w3.org/2000/svg';
-  const pl = document.createElementNS(NS, 'polyline');
-  pl.setAttribute('points', pts.map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' '));
-  pl.setAttribute('fill', 'none');
-  pl.setAttribute('stroke', 'rgba(255,255,255,.85)');
-  pl.setAttribute('stroke-width', '2');
-  pl.setAttribute('stroke-linecap', 'round');
-  pl.setAttribute('stroke-linejoin', 'round');
-  svg.appendChild(pl);
-  const u = pts[pts.length - 1];
-  const c = document.createElementNS(NS, 'circle');
-  c.setAttribute('cx', u[0]);
-  c.setAttribute('cy', u[1]);
-  c.setAttribute('r', '3.5');
-  c.setAttribute('fill', '#fff');
-  svg.appendChild(c);
+  const mk = (tag, at) => { const e = document.createElementNS(NS, tag); for(const k in at) e.setAttribute(k, at[k]); svg.appendChild(e); return e; };
+  const linha = pts => pts.map((v, d) => X(d).toFixed(1) + ',' + Y(v).toFixed(1)).join(' ');
+  mk('line', {x1: 0, x2: W, y1: H - P, y2: H - P, stroke: 'rgba(255,255,255,.18)', 'stroke-width': 1});
+  mk('polyline', {points: linha(B.pts), fill: 'none', stroke: 'rgba(255,255,255,.6)', 'stroke-width': 1.5, 'stroke-dasharray': '4 4', 'vector-effect': 'non-scaling-stroke'});
+  const ult = A.pts.length - 1;
+  mk('path', {d: 'M' + X(0) + ',' + Y(0) + ' L' + linha(A.pts).replace(/ /g, ' L') + ' L' + X(ult) + ',' + (H - P) + ' Z', fill: 'rgba(255,255,255,.14)', stroke: 'none'});
+  mk('polyline', {points: linha(A.pts), fill: 'none', stroke: '#fff', 'stroke-width': 2.5, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'vector-effect': 'non-scaling-stroke'});
+  if(ult > 0){
+    const c = mk('circle', {cx: X(ult), cy: Y(A.pts[ult]), r: 4, fill: '#fff'});
+    c.setAttribute('vector-effect', 'non-scaling-stroke');
+  }
+  $('rlA').textContent = nomeMes(ym + '-01', 'long');
+  $('rlB').textContent = nomeMes(ymPrev + '-01', 'long');
 }
 
 function render(){
@@ -166,7 +183,6 @@ function render(){
   const meses = [];
   for(let k = -5; k <= 0; k++) meses.push(addMeses(mes, k).slice(0, 7));
   const totais = meses.map(m => soma(janela.filter(x => x.data.slice(0, 7) === m)));
-  desenharSpark(totais);
 
   const mmPrev = meses[4];
   let cur = totais[5], prev = totais[4], ate = 0;
@@ -177,6 +193,7 @@ function render(){
     cur = soma(dados.filter(x => x.data <= hj));
     prev = soma(janela.filter(x => x.data.slice(0, 7) === mmPrev && +x.data.slice(8, 10) <= corte));
   }
+  desenharRitmo(mm, mmPrev, ehAtual ? +hj.slice(8, 10) : 0);
   const cmp = $('hCmp');
   cmp.innerHTML = '';
   const nomePrev = nomeMes(mmPrev + '-01', 'long');
