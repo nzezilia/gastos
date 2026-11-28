@@ -18,6 +18,7 @@
     '.pi8{position:relative;margin-bottom:16px}' +
     '.cd8{position:relative;display:flex;flex-direction:column;justify-content:space-between;height:168px;border-radius:22px;padding:16px 18px;margin-top:-112px;cursor:pointer;overflow:hidden;border:1px solid rgba(255,255,255,.28);box-shadow:0 -10px 24px -14px rgba(0,0,0,.6);transition:transform .15s}' +
     '.cd8:first-child{margin-top:0}' +
+    '.pi8 .dica8{font-size:12px;color:var(--mut);text-align:center;margin-top:8px}' +
     '.cd8:active{transform:scale(.985)}' +
     '.cd8::after{content:"";position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.22),rgba(255,255,255,0) 55%);pointer-events:none}' +
     '.cd8 .t8{position:relative;display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:15px;font-weight:700}' +
@@ -107,7 +108,36 @@
     return d;
   }
 
-  function cartaoBanco(bk) {
+  /* cartão em destaque (fica na frente da pilha), lembrado neste aparelho */
+  var destaque = '';
+  try { destaque = localStorage.getItem('pilhaDestaque') || ''; } catch (e) {}
+  var reduzir = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function trazerParaFrente(bk) {
+    var antes = {};
+    [].forEach.call(pilha.children, function (c) { if (c.dataset.k) antes[c.dataset.k] = c.getBoundingClientRect().top; });
+    destaque = chaveB(bk.nome);
+    try { localStorage.setItem('pilhaDestaque', destaque); } catch (e) {}
+    desenhar();
+    if (reduzir) return;
+    /* anima cada cartão da posição antiga para a nova */
+    [].forEach.call(pilha.children, function (c) {
+      var t0 = antes[c.dataset.k];
+      if (t0 === undefined) return;
+      var dy = t0 - c.getBoundingClientRect().top;
+      if (!dy) return;
+      c.style.transition = 'none';
+      c.style.transform = 'translateY(' + dy + 'px)';
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          c.style.transition = 'transform .38s cubic-bezier(.2,.8,.2,1)';
+          c.style.transform = '';
+        });
+      });
+    });
+  }
+
+  function cartaoBanco(bk, naFrente) {
     var CC = window.CorCartao;
     var cor = CC ? CC.cor('banco', bk.nome) : {fundo: '#475569', texto: '#fff'};
     var c = el('div', 'cd8');
@@ -119,8 +149,9 @@
     t.appendChild(el('span', '', bk.nome));
     t.appendChild(el('small', '', tipo));
     c.appendChild(t);
-    var abrirConta = bk.conta ? bk.conta.abrir : null;
-    var abrirCartao = bk.cartao ? function () { if (window.abrirCartao7) window.abrirCartao7(bk.cartao.nome); } : null;
+    c.dataset.k = chaveB(bk.nome);
+    var abrirConta = naFrente && bk.conta ? bk.conta.abrir : null;
+    var abrirCartao = naFrente && bk.cartao ? function () { if (window.abrirCartao7) window.abrirCartao7(bk.cartao.nome); } : null;
     var linha = el('div', 'b8');
     if (bk.conta && (temConta || !bk.cartao)) {
       linha.appendChild(coluna('Saldo da conta', moeda(bk.conta.saldo), '', abrirConta));
@@ -131,11 +162,13 @@
         m.status + ' · vence dia ' + m.vence, abrirCartao));
     }
     c.appendChild(linha);
-    var abrir = abrirCartao || abrirConta;
+    var abrir = naFrente ? (abrirCartao || abrirConta) : function () { trazerParaFrente(bk); };
+    c.setAttribute('aria-label', naFrente ? bk.nome + ', em destaque' : 'Trazer ' + bk.nome + ' para a frente');
     if (abrir) {
       c.setAttribute('role', 'button');
       c.tabIndex = 0;
       c.onclick = abrir;
+      c.onkeydown = function (e) { if (e.key === 'Enter') abrir(); };
     }
     return c;
   }
@@ -149,9 +182,13 @@
       pilha.appendChild(el('div', 'vz8', 'Carregando contas e cartões…'));
       return;
     }
-    /* bancos com cartão de crédito ficam na frente da pilha */
-    lista.sort(function (a, b) { return (a.cartao ? 1 : 0) - (b.cartao ? 1 : 0); });
-    lista.forEach(function (bk) { pilha.appendChild(cartaoBanco(bk)); });
+    /* o escolhido fica na frente; sem escolha, os bancos com crédito vão para a frente */
+    lista.sort(function (a, b) {
+      var da = chaveB(a.nome) === destaque ? 2 : 0, db2 = chaveB(b.nome) === destaque ? 2 : 0;
+      return (da + (a.cartao ? 1 : 0)) - (db2 + (b.cartao ? 1 : 0));
+    });
+    lista.forEach(function (bk, i) { pilha.appendChild(cartaoBanco(bk, i === lista.length - 1)); });
+    if (lista.length > 1) pilha.appendChild(el('div', 'dica8', 'Toque num cartão de trás para trazê-lo para a frente'));
   }
 
   bCor.onclick = function () {
