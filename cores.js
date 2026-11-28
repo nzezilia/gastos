@@ -55,10 +55,18 @@
     return (0.299 * r + 0.587 * g + 0.114 * b) > 170 ? '#16161a' : '#ffffff';
   }
 
-  /* tabela: 'meios_pagamento' (cartões) ou 'contas' */
-  function escolhida(tabela, nome) { return mapa[chave(tabela, nome)] || ''; }
+  /* tabela: 'meios_pagamento' (cartões), 'contas' ou 'banco'.
+     'banco' junta conta e cartão do mesmo banco (nome sem "Cartão"/"Conta"): uma cor só para os dois. */
+  function nomeBanco(n) { return (n || '').replace(/^(cart[aã]o|conta)\s+/i, '').trim(); }
+  function escolhida(tabela, nome) {
+    if (tabela === 'banco') {
+      var b = nomeBanco(nome);
+      return mapa[chave('meios_pagamento', 'Cartão ' + b)] || mapa[chave('contas', b)] || '';
+    }
+    return mapa[chave(tabela, nome)] || '';
+  }
   function cor(tabela, nome) {
-    var c = escolhida(tabela, nome) || automatica(nome);
+    var c = escolhida(tabela, nome) || automatica(tabela === 'banco' ? nomeBanco(nome) : nome);
     return {fundo: c, texto: texto(c)};
   }
 
@@ -76,6 +84,11 @@
   }
 
   async function definir(db, tabela, nome, valor) {
+    if (tabela === 'banco') {
+      var b = nomeBanco(nome);
+      await definir(db, 'contas', b, valor);
+      return definir(db, 'meios_pagamento', 'Cartão ' + b, valor);
+    }
     var k = chave(tabela, nome);
     if (valor) mapa[k] = valor; else delete mapa[k];
     var gravou = false;
@@ -173,6 +186,6 @@
 
   window.CorCartao = {
     PALETA: PALETA, cor: cor, escolhida: escolhida, automatica: automatica, texto: texto,
-    carregar: carregar, definir: definir, aoMudar: aoMudar, abrirSeletor: abrirSeletor
+    carregar: carregar, definir: definir, nomeBanco: nomeBanco, aoMudar: aoMudar, abrirSeletor: abrirSeletor
   };
 })();

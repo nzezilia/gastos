@@ -1,7 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
 @import url('https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css');
 
-html:root{color-scheme:dark;--bg:#130d2a;--card:rgba(255,255,255,.08);--card2:rgba(255,255,255,.14);--sheet:rgba(30,22,64,.94);--txt:#ffffff;--mut:#b9b2d6;--pri:#8b7bff;--bd:rgba(255,255,255,.14);--err:#ff8fa3;--ok:#6ee7b7;--warn:#fcd34d;--tint:color-mix(in srgb,var(--pri) 22%,transparent);--sombra:none;--vidro:blur(18px) saturate(140%);--aurora:radial-gradient(55% 38% at 8% 4%,color-mix(in srgb,#ff7a59 70%,transparent) 0,transparent 70%),radial-gradient(65% 42% at 100% 30%,color-mix(in srgb,var(--pri) 80%,transparent) 0,transparent 70%),radial-gradient(70% 45% at 10% 92%,color-mix(in srgb,#00b3a6 65%,transparent) 0,transparent 70%),#130d2a}
+html:root{color-scheme:dark;--bg:#130d2a;--card:rgba(255,255,255,.08);--card2:rgba(255,255,255,.14);--sheet:rgba(30,22,64,.94);--txt:#ffffff;--mut:#b9b2d6;--pri:#8b7bff;--bd:rgba(255,255,255,.14);--err:#ff8fa3;--ok:#6ee7b7;--warn:#fcd34d;--tint:color-mix(in srgb,var(--pri) 22%,transparent);--sombra:none;--vidro:blur(18px) saturate(140%);--aurora:linear-gradient(180deg,color-mix(in srgb,var(--pri) 30%,#130d2a) 0%,#130d2a 42%,#0d0920 100%)}
 html body{font-family:'Manrope','Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums;padding-bottom:calc(120px + env(safe-area-inset-bottom))}
 html body h1{font-size:28px;font-weight:700;letter-spacing:-.02em;margin:24px 0 16px}
 html body h2{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.09em;color:var(--mut);margin:28px 4px 10px}
@@ -63,3 +63,7 @@ html body :is(#ctOv,#edOv,#enOv,#fabOv,#plOv)>*{background:var(--sheet)!importan
 html body #cdOv{background:var(--aurora)}
 html body #toast{background:rgba(30,22,64,.95);border:1px solid var(--bd)}
 html body .big{backdrop-filter:none;-webkit-backdrop-filter:none;background:transparent}
+
+/* Sem sombras e sem manchas: fundo liso em degradê e cartões só com borda fina */
+html body .btn,html body .chip.on,html body #nav,html body #nav a.fab,html body .hero,html body .cd8,html body .cartsel,html body .cd7,html body .stat,html body .card{box-shadow:none!important}
+html body #nav a.fab{border:1px solid rgba(255,255,255,.4)}

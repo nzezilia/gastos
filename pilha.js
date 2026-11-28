@@ -22,9 +22,11 @@
     '.cd8::after{content:"";position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.22),rgba(255,255,255,0) 55%);pointer-events:none}' +
     '.cd8 .t8{position:relative;display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:15px;font-weight:700}' +
     '.cd8 .t8 small{font-size:12px;font-weight:600;opacity:.8;white-space:nowrap}' +
-    '.cd8 .b8{position:relative}' +
+    '.cd8 .b8{position:relative;display:flex;gap:16px}' +
+    '.cd8 .co8{flex:1;min-width:0;border-radius:12px;padding:4px 6px;margin:-4px -6px}' +
+    '.cd8 .co8+.co8{border-left:1px solid currentColor;border-left-color:color-mix(in srgb,currentColor 30%,transparent);padding-left:14px;margin-left:0;border-radius:0}' +
     '.cd8 .b8 small{display:block;font-size:12px;opacity:.8}' +
-    '.cd8 .b8 b{font-size:26px;letter-spacing:-.02em}' +
+    '.cd8 .b8 b{font-size:22px;letter-spacing:-.02em;white-space:nowrap}' +
     '.cd8 .b8 .x8{font-size:12px;opacity:.85;margin-top:2px}' +
     '.pi8 .vz8{color:var(--mut);font-size:14px;padding:12px 4px}';
   document.head.appendChild(st);
@@ -76,51 +78,86 @@
   bloco.appendChild(cab);
   bloco.appendChild(pilha);
 
-  function cartaoVisual(rot, tipo, lbl, val, extra, cor, abrir) {
+  function chaveB(n) { return n.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]/g, ''); }
+
+  /* junta conta e cartão de crédito do mesmo banco */
+  function bancos() {
+    var mapa = {}, ordem = [];
+    function pegar(nome) {
+      var k = chaveB(nome);
+      if (!mapa[k]) { mapa[k] = {nome: nome, conta: null, cartao: null}; ordem.push(k); }
+      return mapa[k];
+    }
+    (window.ContasInfo || []).forEach(function (c) { pegar(c.nome).conta = c; });
+    (window.CartoesInfo || []).forEach(function (m) { pegar(curto(m.nome)).cartao = m; });
+    return ordem.map(function (k) { return mapa[k]; });
+  }
+
+  function coluna(lbl, val, extra, abrir) {
+    var d = el('div', 'co8');
+    d.appendChild(el('small', '', lbl));
+    d.appendChild(el('b', '', val));
+    if (extra) d.appendChild(el('div', 'x8', extra));
+    if (abrir) {
+      d.setAttribute('role', 'button');
+      d.tabIndex = 0;
+      d.onclick = function (e) { e.stopPropagation(); abrir(); };
+      d.onkeydown = function (e) { if (e.key === 'Enter') { e.stopPropagation(); abrir(); } };
+    }
+    return d;
+  }
+
+  function cartaoBanco(bk) {
+    var CC = window.CorCartao;
+    var cor = CC ? CC.cor('banco', bk.nome) : {fundo: '#475569', texto: '#fff'};
     var c = el('div', 'cd8');
     c.style.background = 'linear-gradient(135deg,' + cor.fundo + ',color-mix(in srgb,' + cor.fundo + ' 70%,#000))';
     c.style.color = cor.texto;
-    c.setAttribute('role', 'button');
-    c.tabIndex = 0;
+    var temConta = bk.conta && !bk.conta.semSaldo;
+    var tipo = bk.cartao && temConta ? 'Conta e crédito' : bk.cartao ? 'Crédito' : (bk.conta ? bk.conta.tipo : '');
     var t = el('div', 't8');
-    t.appendChild(el('span', '', rot));
+    t.appendChild(el('span', '', bk.nome));
     t.appendChild(el('small', '', tipo));
-    var b = el('div', 'b8');
-    b.appendChild(el('small', '', lbl));
-    b.appendChild(el('b', '', val));
-    if (extra) b.appendChild(el('div', 'x8', extra));
-    c.appendChild(t); c.appendChild(b);
-    c.onclick = abrir;
-    c.onkeydown = function (e) { if (e.key === 'Enter') abrir(); };
+    c.appendChild(t);
+    var abrirConta = bk.conta ? bk.conta.abrir : null;
+    var abrirCartao = bk.cartao ? function () { if (window.abrirCartao7) window.abrirCartao7(bk.cartao.nome); } : null;
+    var linha = el('div', 'b8');
+    if (bk.conta && (temConta || !bk.cartao)) {
+      linha.appendChild(coluna('Saldo da conta', moeda(bk.conta.saldo), '', abrirConta));
+    }
+    if (bk.cartao) {
+      var m = bk.cartao;
+      linha.appendChild(coluna('Fatura do crédito', moeda(m.fatura),
+        m.status + ' · vence dia ' + m.vence, abrirCartao));
+    }
+    c.appendChild(linha);
+    var abrir = abrirCartao || abrirConta;
+    if (abrir) {
+      c.setAttribute('role', 'button');
+      c.tabIndex = 0;
+      c.onclick = abrir;
+    }
     return c;
   }
 
   function desenhar() {
-    var CC = window.CorCartao;
-    var contas = window.ContasInfo || [], cartoes = window.CartoesInfo || [];
+    var contas = window.ContasInfo || [];
     if (window.ContasInfo) tot.textContent = moeda(contas.reduce(function (s, c) { return s + c.saldo; }, 0));
     pilha.innerHTML = '';
-    if (!contas.length && !cartoes.length) {
+    var lista = bancos();
+    if (!lista.length) {
       pilha.appendChild(el('div', 'vz8', 'Carregando contas e cartões…'));
       return;
     }
-    contas.forEach(function (c) {
-      var cor = CC ? CC.cor('contas', c.nome) : {fundo: '#475569', texto: '#fff'};
-      pilha.appendChild(cartaoVisual(c.nome, c.tipo, 'Saldo', moeda(c.saldo), '', cor, c.abrir));
-    });
-    cartoes.forEach(function (m) {
-      var cor = CC ? CC.cor('meios_pagamento', m.nome) : {fundo: '#475569', texto: '#fff'};
-      var extra = 'Fatura ' + m.status.toLowerCase() + ' · vence dia ' + m.vence +
-        (m.disponivel !== null ? ' · disponível ' + moeda(m.disponivel) : '');
-      pilha.appendChild(cartaoVisual(curto(m.nome), 'Crédito', 'Fatura atual', moeda(m.fatura), extra, cor,
-        function () { if (window.abrirCartao7) window.abrirCartao7(m.nome); }));
-    });
+    /* bancos com cartão de crédito ficam na frente da pilha */
+    lista.sort(function (a, b) { return (a.cartao ? 1 : 0) - (b.cartao ? 1 : 0); });
+    lista.forEach(function (bk) { pilha.appendChild(cartaoBanco(bk)); });
   }
 
   bCor.onclick = function () {
     if (!window.CorCartao) return;
-    var itens = (window.CartoesInfo || []).map(function (m) { return {tabela: 'meios_pagamento', nome: m.nome, rotulo: m.nome}; })
-      .concat((window.ContasInfo || []).map(function (c) { return {tabela: 'contas', nome: c.nome, rotulo: 'Conta ' + c.nome}; }));
+    var itens = bancos().filter(function (bk) { return bk.nome !== 'Dinheiro'; })
+      .map(function (bk) { return {tabela: 'banco', nome: bk.nome, rotulo: bk.nome}; });
     window.CorCartao.abrirSeletor(db, itens);
   };
 

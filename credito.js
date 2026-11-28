@@ -91,8 +91,8 @@
     return n.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/^(cartao|conta)\s+/, '').replace(/[^a-z0-9]/g, '');
   }
   function marca(nome) {
-    if (window.CorCartao && window.CorCartao.escolhida('meios_pagamento', nome)) {
-      var c = window.CorCartao.cor('meios_pagamento', nome);
+    if (window.CorCartao && window.CorCartao.escolhida('banco', nome)) {
+      var c = window.CorCartao.cor('banco', nome);
       return [c.fundo, c.texto];
     }
     return MARCAS[slug(nome)] || [corDe(nome), '#ffffff'];
