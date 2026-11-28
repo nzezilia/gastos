@@ -401,7 +401,7 @@ async function buscarMovs() {
       tot.appendChild(b1);
     }
     /* resumo das contas para a pilha do Início (pilha.js) */
-    window.ContasInfo = lista.map(function (c) { return {nome: c.nome, tipo: TIPOS[c.tipo] || 'Conta', saldo: saldoCalc(c), abrir: function () { abrirConta(c); }}; });
+    window.ContasInfo = lista.map(function (c) { return {nome: c.nome, tipo: TIPOS[c.tipo] || 'Conta', saldo: saldoCalc(c), semSaldo: !!c._novo, abrir: function () { abrirConta(c); }}; });
     window.novaConta7 = function () { abrirConta(null); };
     document.dispatchEvent(new Event('contas7'));
     lista.forEach(function (c) {

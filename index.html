@@ -253,7 +253,7 @@ function desenharCartaoSel(){
   if(!banco || !window.CorCartao){ box.hidden = true; return; }
   const cred = forma === 'credito';
   const c = banco === 'Dinheiro' ? {fundo: '#15803d', texto: '#ffffff'}
-    : CorCartao.cor(cred ? 'meios_pagamento' : 'contas', cred ? 'Cartão ' + banco : banco);
+    : CorCartao.cor('banco', banco);
   box.hidden = false;
   box.style.background = 'linear-gradient(135deg,' + c.fundo + ',color-mix(in srgb,' + c.fundo + ' 70%,#000))';
   box.style.color = c.texto;

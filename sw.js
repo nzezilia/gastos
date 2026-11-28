@@ -1,4 +1,4 @@
-const C = 'gastos-v4';
+const C = 'gastos-v5';
 const ARQ = ['./', 'index.html', 'manifest.json', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {

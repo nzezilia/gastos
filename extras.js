@@ -10,7 +10,7 @@
   };
   ['logos.js'].concat(MAPA[pag] || []).forEach(function (arquivo) {
     var s = document.createElement('script');
-    s.src = arquivo + '?v=4';
+    s.src = arquivo + '?v=5';
     s.async = false;
     document.body.appendChild(s);
   });
