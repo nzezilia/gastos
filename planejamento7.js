@@ -69,7 +69,7 @@
     Object.keys(attrs).forEach(function (k) { e.setAttribute(k, attrs[k]); });
     return e;
   }
-  function corPct(p) { return p > 100 ? '#ef4444' : p >= 80 ? '#d97706' : '#16a34a'; }
+  function corPct(p) { return p > 100 ? '#f87171' : p >= 80 ? '#fbbf24' : '#34d399'; }
 
   /* ---------- estrutura ---------- */
   var geral = document.getElementById('geral');
@@ -154,7 +154,7 @@
       var bar = el('div', 'bar'), bi = el('i');
       var p = gasto / plan * 100;
       bi.style.width = Math.min(p, 100) + '%';
-      bi.style.background = p > 100 ? '#ef4444' : 'var(--pri)';
+      bi.style.background = p > 100 ? 'var(--err)' : 'var(--pri)';
       bar.appendChild(bi);
       resumo.appendChild(bar);
     }
@@ -206,7 +206,7 @@
       gh.appendChild(dt);
       gh.appendChild(el('span', 'nm', x.g.nome));
       var tv = el('span', 'tv', brl(x.gasto));
-      if (x.plan > 0 && x.gasto > x.plan) tv.style.color = '#ef4444';
+      if (x.plan > 0 && x.gasto > x.plan) tv.style.color = 'var(--err)';
       gh.appendChild(tv);
       gh.onclick = function () { abertos[x.g.id] = !abertos[x.g.id]; desenharGrupos(gs); };
       card.appendChild(gh);
@@ -245,7 +245,7 @@
             br.appendChild(bi);
             md.appendChild(br);
             var b = el('b', '', pc > 100 ? 'Passou ' + brl(l.gasto - l.lim) : 'Sobra ' + brl(l.lim - l.gasto));
-            b.style.color = pc > 100 ? '#ef4444' : '#16a34a';
+            b.style.color = pc > 100 ? 'var(--err)' : 'var(--ok)';
             rt.appendChild(b);
             rt.appendChild(el('small', '', pc > 100 ? Math.round(pc) + '% do limite' : Math.round(pc) + '% usado'));
           } else {

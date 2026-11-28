@@ -17,7 +17,7 @@ input,select{width:100%;padding:12px;font-size:16px;border:1px solid var(--bd);b
 .mesnav button,.hdr .ib{background:none;border:0;color:var(--mut);font-size:22px;padding:6px;line-height:1;cursor:pointer}
 #mesLabel{min-width:130px;text-align:center;text-transform:capitalize}
 
-.hero{background:linear-gradient(135deg,var(--pri),color-mix(in srgb,var(--pri) 68%,#000));color:#fff;border-radius:24px;padding:20px;box-shadow:0 14px 30px -14px var(--pri)}
+.hero{background:radial-gradient(120% 140% at 100% 0%,color-mix(in srgb,var(--pri) 55%,var(--card)) 0%,var(--card) 62%);color:#fff;border:1px solid color-mix(in srgb,var(--pri) 22%,var(--bd));border-radius:24px;padding:20px;box-shadow:0 14px 30px -18px color-mix(in srgb,var(--pri) 60%,transparent)}
 .hero .hl{font-size:13px;opacity:.85}
 .hero .hv{font-size:34px;font-weight:700;letter-spacing:-.02em;margin:2px 0 10px}
 .hero .hrow{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
@@ -30,7 +30,7 @@ input,select{width:100%;padding:12px;font-size:16px;border:1px solid var(--bd);b
 .stat b{display:block;font-size:19px;margin-top:4px;letter-spacing:-.01em}
 .stat b.neg{color:var(--err)}
 .stat .mini{height:6px;border-radius:3px;background:var(--bd);margin-top:8px;overflow:hidden}
-.stat .mini i{display:block;height:100%;width:0;background:#16a34a}
+.stat .mini i{display:block;height:100%;width:0;background:var(--ok)}
 
 .ic{width:40px;height:40px;display:flex;align-items:center;justify-content:center;flex:none;font-size:20px}
 .catrow{display:flex;gap:12px;align-items:center;padding:8px 0}

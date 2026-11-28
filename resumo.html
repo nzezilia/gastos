@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#4f46e5">
+<meta name="theme-color" content="#0b0d12">
 <title>Resumo</title>
 <link rel="stylesheet" href="estilo.css">
 <script src="nav.js" defer></script>
@@ -29,15 +29,15 @@ select{width:100%;padding:12px;font-size:16px;border:1px solid var(--bd);border-
 .mut{color:var(--mut);font-size:13px}
 .cmp{font-size:13px;margin-top:8px;color:var(--mut)}
 .cmp.up{color:var(--err)}
-.cmp.down{color:#16a34a}
+.cmp.down{color:var(--ok)}
 .pdv{font-size:28px;font-weight:700;margin:6px 0 2px;color:var(--pri)}
 .pdv.over{color:var(--err)}
 .pdh{font-size:14px;margin-top:10px;padding-top:10px;border-top:1px solid var(--bd)}
 .pdh.over{color:var(--err)}
 .barra{height:10px;background:var(--bd);border-radius:999px;overflow:hidden;margin:10px 0 6px}
-.barra i{display:block;height:100%;width:0;background:#16a34a}
-.barra.warn i{background:#d97706}
-.barra.over i{background:#dc2626}
+.barra i{display:block;height:100%;width:0;background:var(--ok)}
+.barra.warn i{background:var(--warn)}
+.barra.over i{background:var(--err)}
 .hist{display:flex;align-items:flex-end;gap:6px;height:150px}
 .hcol{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:4px;background:none;border:0;padding:0;color:var(--txt);cursor:pointer;height:100%}
 .hv{font-size:10px;color:var(--mut);white-space:nowrap}

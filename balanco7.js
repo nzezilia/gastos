@@ -3,7 +3,7 @@
   window.Balanco7Loaded = true;
 
   var NS = 'http://www.w3.org/2000/svg';
-  var VERDE = '#22c55e', VERM = '#ef4444';
+  var VERDE = '#22c55e', VERM = '#f87171';
   var per = 'ano', estilo = 'area', ano = new Date().getFullYear();
   var cacheAno = {ano: 0, t: 0, g: [], e: []};
   var card = null, corpo = null, timer = null;

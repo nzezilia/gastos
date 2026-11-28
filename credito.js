@@ -54,7 +54,7 @@
     '.dt7 .r1 .tv{font-size:22px;font-weight:700}' +
     '.dt7 .r2{display:flex;align-items:center;gap:10px;margin-top:6px;font-size:13px;color:var(--mut)}' +
     '.dt7 .tag{padding:4px 12px;border-radius:999px;font-size:12px;font-weight:600;border:1px solid var(--pri);color:var(--pri)}' +
-    '.dt7 .tag.ok{border-color:#22c55e;color:#22c55e}.dt7 .tag.am{border-color:#d97706;color:#d97706}.dt7 .tag.rd{border-color:#ef4444;color:#ef4444}' +
+    '.dt7 .tag.ok{border-color:#22c55e;color:#22c55e}.dt7 .tag.am{border-color:var(--warn);color:var(--warn)}.dt7 .tag.rd{border-color:var(--err);color:var(--err)}' +
     '.bt7{width:100%;padding:16px;margin-top:16px;border:0;border-radius:18px;color:#fff;font-size:16px;font-weight:600;cursor:pointer;font-family:inherit}' +
     '.bt7.sec{background:none!important;border:1px solid var(--bd);color:var(--txt);margin-top:10px}' +
     '.ct7{margin-top:10px}' +

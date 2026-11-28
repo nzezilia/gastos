@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#1e3a8a">
+<meta name="theme-color" content="#0b0d12">
 <title>Planejamento</title>
 <link rel="stylesheet" href="estilo.css">
 <link rel="stylesheet" href="componentes.css">
@@ -13,7 +13,7 @@
 <script src="receitas7.js" defer></script>
 <style>
 .bar2{height:10px;border-radius:5px;background:var(--bd);margin-top:10px;overflow:hidden}
-.bar2 i{display:block;height:100%;width:0;border-radius:5px;background:#16a34a}
+.bar2 i{display:block;height:100%;width:0;border-radius:5px;background:var(--ok)}
 .meta{background:var(--card);border:1px solid var(--bd);border-radius:20px;padding:16px;margin-bottom:12px;box-shadow:var(--sombra)}
 .meta .mt{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
 .meta .mn{font-size:17px;font-weight:700}
@@ -24,7 +24,7 @@
 .meta .bar{height:8px;border-radius:4px;background:var(--bd);overflow:hidden}
 .meta .bar i{display:block;height:100%;border-radius:4px;background:var(--pri)}
 .meta .mf{font-size:13px;color:var(--mut);margin-top:10px}
-.meta .mf.ok{color:#16a34a;font-weight:600}
+.meta .mf.ok{color:var(--ok);font-weight:600}
 .meta .mb{display:flex;gap:8px;margin-top:12px}
 .meta .mb button{flex:1;padding:10px;border-radius:12px;border:1px solid var(--pri);background:none;color:var(--pri);font-size:14px;font-weight:600;cursor:pointer}
 .meta .mb button.p{background:var(--pri);color:#fff}
@@ -92,7 +92,7 @@ function renderGeral(tot){
     $('gVal').textContent = brl(tot) + ' de ' + brl(limite);
     $('gPct').textContent = Math.round(p) + '%';
     bar.style.width = Math.min(p, 100) + '%';
-    bar.style.background = p > 100 ? '#dc2626' : p >= 80 ? '#d97706' : '#16a34a';
+    bar.style.background = p > 100 ? 'var(--err)' : p >= 80 ? 'var(--warn)' : 'var(--ok)';
     $('gTxt').textContent = tot <= limite ? 'Restam ' + brl(limite - tot) : 'Estourou em ' + brl(tot - limite);
   } else {
     $('gVal').textContent = 'Defina um limite';
@@ -142,13 +142,13 @@ function renderCats(){
     if(lim > 0){
       const pct = gasto / lim * 100;
       p.textContent = Math.round(pct) + '%';
-      if(pct > 100) p.style.color = '#dc2626';
+      if(pct > 100) p.style.color = 'var(--err)';
       l2.textContent = brl(gasto) + ' | ' + brl(lim);
       const bar = document.createElement('div');
       bar.className = 'bar';
       const bi = document.createElement('i');
       bi.style.width = Math.min(pct, 100) + '%';
-      bi.style.background = pct > 100 ? '#dc2626' : corCat(c);
+      bi.style.background = pct > 100 ? 'var(--err)' : corCat(c);
       bar.appendChild(bi);
       mid.appendChild(bar);
     } else {

@@ -134,7 +134,7 @@
         l2.textContent = brl(v) + ' | ' + brl(lim) + (pc > 100 ? ' · passou ' + brl(v - lim) : '');
         if (pc > 100) l2.className = 'l2 ex';
         bi.style.width = Math.min(pc, 100) + '%';
-        bi.style.background = pc > 100 ? '#dc2626' : corCat(c);
+        bi.style.background = pc > 100 ? 'var(--err)' : corCat(c);
       } else {
         l2.textContent = brl(v);
         bi.style.width = Math.max(v / tot * 100, 2) + '%';

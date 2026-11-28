@@ -1,7 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 @import url('https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css');
 
-html:root{color-scheme:dark;--bg:#000000;--card:#111317;--txt:#f5f7fb;--mut:#8a90a2;--pri:#5b7cfa;--bd:#1f232c;--err:#f87171;--tint:color-mix(in srgb,var(--pri) 16%,transparent);--sombra:none}
+html:root{color-scheme:dark;--bg:#0b0d12;--card:#151922;--card2:#1c2130;--txt:#eef1f7;--mut:#8b93a7;--pri:#6d8bff;--bd:#232836;--err:#f87171;--ok:#34d399;--warn:#fbbf24;--tint:color-mix(in srgb,var(--pri) 16%,transparent);--sombra:none}
 html body{font-family:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums;padding-bottom:calc(120px + env(safe-area-inset-bottom))}
 html body h1{font-size:28px;font-weight:700;letter-spacing:-.02em;margin:24px 0 16px}
 html body h2{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.09em;color:var(--mut);margin:28px 4px 10px}

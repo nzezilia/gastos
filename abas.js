@@ -14,14 +14,14 @@
     '.saldo7 small{display:block;color:var(--mut);font-size:13px}' +
     '.saldo7 .sv{font-size:38px;font-weight:700;letter-spacing:-.02em;color:var(--pri);margin:2px 0}' +
     '.saldo7 .ss{font-size:13px;color:var(--mut)}' +
-    '.saldo7 .ss.pos{color:#16a34a}.saldo7 .ss.neg{color:var(--err)}' +
+    '.saldo7 .ss.pos{color:var(--ok)}.saldo7 .ss.neg{color:var(--err)}' +
     '.fr7{display:grid;grid-template-columns:1fr 1fr;margin-top:12px}' +
     '.fr7>div{padding-right:12px}' +
     '.fr7>div+div{border-left:1px solid var(--bd);padding:0 0 0 16px}' +
     '.fr7 .t{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--mut)}' +
     '.fr7 .t i{width:28px;height:28px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px}' +
-    '.fr7 .t i.in{background:color-mix(in srgb,#16a34a 18%,transparent);color:#16a34a}' +
-    '.fr7 .t i.out{background:color-mix(in srgb,#dc2626 18%,transparent);color:#ef4444}' +
+    '.fr7 .t i.in{background:color-mix(in srgb,var(--ok) 18%,transparent);color:var(--ok)}' +
+    '.fr7 .t i.out{background:color-mix(in srgb,var(--err) 18%,transparent);color:var(--err)}' +
     '.fr7 b{display:block;font-size:19px;margin-top:8px}' +
     '.fr7 small{display:block;font-size:12px;color:var(--mut);margin-top:2px}' +
     '.pl7{margin-top:12px;cursor:pointer}' +
@@ -98,7 +98,7 @@
   var bal = el('div', 'card bal7');
   bal.appendChild(el('strong', '', 'Balanço mensal'));
   var lg = el('div', 'lg');
-  lg.innerHTML = '<span><i style="background:#16a34a"></i>Receitas</span><span><i style="background:#ef4444"></i>Despesas</span>';
+  lg.innerHTML = '<span><i style="background:var(--ok)"></i>Receitas</span><span><i style="background:var(--err)"></i>Despesas</span>';
   var bl = el('div', 'bl');
   bal.appendChild(lg); bal.appendChild(bl);
 
@@ -129,8 +129,8 @@
     meses.forEach(function (m, i) {
       var g = el('div', 'g' + (i === 5 ? ' sel' : ''));
       var pr = el('div', 'pair');
-      var a = el('i'); a.style.background = '#16a34a'; a.style.height = Math.max(3, rec[i] / max * 110) + 'px';
-      var b = el('i'); b.style.background = '#ef4444'; b.style.height = Math.max(3, des[i] / max * 110) + 'px';
+      var a = el('i'); a.style.background = 'var(--ok)'; a.style.height = Math.max(3, rec[i] / max * 110) + 'px';
+      var b = el('i'); b.style.background = 'var(--err)'; b.style.height = Math.max(3, des[i] / max * 110) + 'px';
       pr.appendChild(a); pr.appendChild(b);
       g.appendChild(pr);
       g.appendChild(el('span', '', nomeMes(m + '-01', 'short')));
@@ -158,9 +158,9 @@
       plA.appendChild(el('b', '', brl(limite)));
       var p = tot / limite * 100;
       plB.textContent = tot <= limite ? 'Sobra ' + brl(limite - tot) : 'Passou ' + brl(tot - limite);
-      plB.style.color = tot <= limite ? '#16a34a' : '#ef4444';
+      plB.style.color = tot <= limite ? 'var(--ok)' : 'var(--err)';
       plI.style.width = Math.min(p, 100) + '%';
-      plI.style.background = p > 100 ? '#dc2626' : p >= 80 ? '#d97706' : '#16a34a';
+      plI.style.background = p > 100 ? 'var(--err)' : p >= 80 ? 'var(--warn)' : 'var(--ok)';
     } else {
       plA.appendChild(el('b', '', 'defina um limite'));
       plB.textContent = '';
