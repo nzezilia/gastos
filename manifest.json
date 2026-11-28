@@ -1,7 +1,7 @@
 {
   "name": "Gastos",
   "short_name": "Gastos",
-  "start_url": "./",
+  "start_url": "inicio.html",
   "scope": "./",
   "display": "standalone",
   "background_color": "#130d2a",
