@@ -1,5 +1,5 @@
-const C = 'gastos-v7';
-const ARQ = ['./', 'index.html', 'manifest.json', 'icon-192.png', 'icon-512.png'];
+const C = 'gastos-v8';
+const ARQ = ['./', 'index.html', 'inicio.html', 'manifest.json', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(C).then(c => c.addAll(ARQ)));

@@ -472,9 +472,16 @@ async function salvar(){
   carregarHistorico();
 }
 
-async function mostrar(){
+/* Esta página é o login e o Lançar. Quando o app é aberto pelo ícone (ou logo após o login),
+   vai direto para o Início. Quando você toca em Lançar dentro do app, fica aqui. */
+function veioDoApp(){
+  if(/[?&]lancar\b/.test(location.search)) return true;
+  try { return !!document.referrer && new URL(document.referrer).origin === location.origin; } catch(e){ return false; }
+}
+async function mostrar(aposLogin){
   const {data} = await db.auth.getSession();
   const logado = !!data.session;
+  if(logado && (aposLogin || !veioDoApp())){ location.replace('inicio.html'); return; }
   $('login').hidden = logado;
   $('app').hidden = !logado;
   if(logado){
@@ -491,7 +498,7 @@ $('btnLogin').onclick = async () => {
   $('erroLogin').textContent = '';
   const {error} = await db.auth.signInWithPassword({email: $('email').value.trim(), password: $('senha').value});
   if(error) $('erroLogin').textContent = 'E-mail ou senha incorretos';
-  else mostrar();
+  else mostrar(true);
 };
 $('btnSair').onclick = async () => { await db.auth.signOut(); mostrar(); };
 $('btnSalvar').onclick = salvar;
