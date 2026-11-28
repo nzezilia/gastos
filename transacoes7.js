@@ -127,7 +127,7 @@
     var row = criarTx(g, aoSalvar);
     trocarIcone(row, g.meio_pagamento, g.categoria);
     var futuro = g.data > hoje();
-    status(row, futuro ? 'Pendente' : 'Pago', futuro ? '#d97706' : '#16a34a');
+    status(row, futuro ? 'Pendente' : 'Pago', futuro ? 'var(--warn)' : 'var(--ok)');
     return row;
   }
   function linhaEntrada(e, aoSalvar) {
@@ -137,7 +137,7 @@
       var ic = row.querySelector('.s');
       if (ic) ic.textContent = (e.descricao ? e.categoria + ' · ' : '') + e.conta + (e.recorrente_id ? ' · fixa' : '');
     }
-    status(row, e.data > hoje() ? 'Previsto' : 'Recebido', e.data > hoje() ? '#d97706' : '#16a34a');
+    status(row, e.data > hoje() ? 'Previsto' : 'Recebido', e.data > hoje() ? 'var(--warn)' : 'var(--ok)');
     return row;
   }
 

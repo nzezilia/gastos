@@ -29,8 +29,8 @@
     '.cc .l3{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;color:var(--mut);margin-top:8px;gap:8px}' +
     '.cc .l3 b{font-size:15px;color:var(--txt)}' +
     '.cc .l3 b.neg{color:var(--err)}' +
-    '.cca{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px;padding:8px 10px;border-radius:12px;background:color-mix(in srgb,#d97706 14%,transparent);color:#b45309;font-size:12px;font-weight:600}' +
-    '.cca.rd{background:color-mix(in srgb,#dc2626 14%,transparent);color:#dc2626}' +
+    '.cca{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px;padding:8px 10px;border-radius:12px;background:color-mix(in srgb,var(--warn) 14%,transparent);color:#b45309;font-size:12px;font-weight:600}' +
+    '.cca.rd{background:color-mix(in srgb,var(--err) 14%,transparent);color:var(--err)}' +
     '.cca button{border:1px solid currentColor;border-radius:999px;padding:6px 12px;background:var(--card);color:inherit;font-size:12px;font-weight:600;flex:none;cursor:pointer}' +
     '.ctot{display:flex;justify-content:space-between;align-items:baseline;margin:-2px 2px 12px}' +
     '.ctot small{color:var(--mut);font-size:12px}' +
@@ -81,7 +81,7 @@
     '.cdBtn{width:100%;padding:16px;margin-top:14px;border:0;border-radius:16px;background:var(--pri);color:#fff;font-size:16px;font-weight:600;cursor:pointer;box-shadow:0 8px 18px -8px var(--pri)}' +
     '.cdBtn.sec{background:none;border:1px solid var(--pri);color:var(--pri);box-shadow:none}' +
     '.cdBtn:disabled{opacity:.6}' +
-    '.cdPago{margin-top:14px;display:flex;align-items:center;gap:8px;color:#16a34a;font-weight:600;font-size:15px}' +
+    '.cdPago{margin-top:14px;display:flex;align-items:center;gap:8px;color:var(--ok);font-weight:600;font-size:15px}' +
     '.cdPago i{font-size:22px}' +
     '.cdH{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.09em;color:var(--mut);margin:24px 4px 10px}';
   document.head.appendChild(st);
@@ -333,7 +333,7 @@ async function buscarMovs() {
         pb.className = 'pb';
         var bi = document.createElement('i');
         bi.style.width = Math.min(pct * 100, 100) + '%';
-        bi.style.background = pct >= 1 ? '#dc2626' : pct >= 0.8 ? '#d97706' : '#16a34a';
+        bi.style.background = pct >= 1 ? 'var(--err)' : pct >= 0.8 ? 'var(--warn)' : 'var(--ok)';
         pb.appendChild(bi);
         el.appendChild(pb);
       }

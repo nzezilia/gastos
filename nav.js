@@ -23,7 +23,7 @@
     var v = c.escuro;
     document.documentElement.style.setProperty('--pri', v);
     var meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute('content', '#000000');
+    if (meta) meta.setAttribute('content', '#0b0d12');
   }
   window.aplicarCor = aplicarCor;
   if (mq.addEventListener) mq.addEventListener('change', aplicarCor);
@@ -101,12 +101,12 @@
     var sh = document.createElement('div');
     sh.id = 'fabSh';
     ov.appendChild(sh);
-    sh.appendChild(opcao('arrow-up-right', '#dc2626', 'Novo gasto', 'Registrar uma saída', function () {
+    sh.appendChild(opcao('arrow-up-right', 'var(--err)', 'Novo gasto', 'Registrar uma saída', function () {
       if (pag !== 'index.html') { location.href = 'index.html'; return; }
       var v = document.getElementById('valor');
       if (v) v.focus();
     }));
-    sh.appendChild(opcao('arrow-down-left', '#16a34a', 'Nova entrada', 'Salário, renda extra, reembolso...', function () {
+    sh.appendChild(opcao('arrow-down-left', 'var(--ok)', 'Nova entrada', 'Salário, renda extra, reembolso...', function () {
       garantirEntradas(function () { window.abrirNovaEntrada(); });
     }));
     sh.appendChild(opcao('file-import', 'var(--pri)', 'Importar fatura', 'Ler o PDF do Inter ou do Itaú', function () {

@@ -22,7 +22,7 @@
     '#enSh .btn{width:100%;padding:16px;margin-top:14px;border:0;border-radius:14px;background:var(--pri);color:#fff;font-size:17px;font-weight:600}' +
     '#enSh .btn.sec{background:none;border:1px solid var(--err);color:var(--err)}' +
     '#enSh .btn:disabled{opacity:.6}' +
-    '.tx .v.pos{color:#16a34a}';
+    '.tx .v.pos{color:var(--ok)}';
   document.head.appendChild(st);
 
   function g(id) { return document.getElementById(id); }
@@ -195,8 +195,8 @@
     row.onclick = function () { window.abrirEdicaoEntrada(e.id, aoSalvar); };
     var ic = document.createElement('div');
     ic.className = 'ic';
-    ic.style.background = 'color-mix(in srgb, #16a34a 16%, transparent)';
-    ic.style.color = '#16a34a';
+    ic.style.background = 'color-mix(in srgb, var(--ok) 16%, transparent)';
+    ic.style.color = 'var(--ok)';
     var i = document.createElement('i');
     i.className = 'ti ti-' + (ICO[e.categoria] || 'cash');
     ic.appendChild(i);

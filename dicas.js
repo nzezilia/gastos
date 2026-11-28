@@ -4,7 +4,7 @@
     '.dica{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--bd)}' +
     '.dica:last-child{border-bottom:0}' +
     '.dica>i{font-size:22px;flex:none;color:var(--pri);margin-top:1px}' +
-    '.dica.ok>i{color:#16a34a}.dica.alerta>i{color:#d97706}.dica.perigo>i{color:var(--err)}' +
+    '.dica.ok>i{color:var(--ok)}.dica.alerta>i{color:var(--warn)}.dica.perigo>i{color:var(--err)}' +
     '.dica b{display:block;font-size:14px;margin-bottom:2px}' +
     '.dica span{display:block;font-size:13px;color:var(--mut);line-height:1.4}' +
     '.dsec{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);margin:18px 0 2px}' +

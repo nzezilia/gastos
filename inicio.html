@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#1e3a8a">
+<meta name="theme-color" content="#0b0d12">
 <title>Início</title>
 <link rel="stylesheet" href="estilo.css">
 <link rel="stylesheet" href="componentes.css">
@@ -32,8 +32,8 @@
 .fluxo{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:auto}
 .fl{background:rgba(255,255,255,.16);border-radius:16px;padding:10px 12px;display:flex;align-items:center;gap:10px}
 .fic{width:32px;height:32px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;flex:none}
-.fic.in{color:#16a34a}
-.fic.out{color:#dc2626}
+.fic.in{color:var(--ok)}
+.fic.out{color:var(--err)}
 .fl small{display:block;font-size:11px;opacity:.85}
 .fl b{font-size:14px}
 </style>
@@ -223,7 +223,7 @@ function render(){
     const p = totMes / limite * 100;
     vOrc.textContent = Math.round(p) + '%';
     bOrc.style.width = Math.min(p, 100) + '%';
-    bOrc.style.background = p > 100 ? '#dc2626' : p >= 80 ? '#d97706' : '#16a34a';
+    bOrc.style.background = p > 100 ? 'var(--err)' : p >= 80 ? 'var(--warn)' : 'var(--ok)';
     if(ehAtual){
       lDia.textContent = 'Posso gastar por dia';
       const dia = +hj.slice(8, 10);
